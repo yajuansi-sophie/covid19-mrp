@@ -1,13 +1,13 @@
 ---
 title: "A design for hospital-based coronavirus tracking"
 author: "Len Covello, Andrew Gelman, Yajuan Si, and Siquan Wang"
-date: "8/13/2020"
+date: "09/19/2020"
 output:
   html_document:
     df_print: paged
   pdf_document: default
   word_document: default
-bibliography: ys-2020.bib
+bibliography: covid19.bib
 ---
 
 In the presence of an epidemic, it is important for hospitals and health maintenance organizations to have indications of changes in rates of exposure among patients and the general population.  We present here an approach to collecting and analyzing data on viral exposure among patients in a hospital system and performing statistical adjustment to estimate viral incidence and trends in the community.  We are currently applying this monitoring and analysis protocol in a small hospital system in Indiana, and this could serve as a model for other medical groups to perform local data collection and analysis, ultimately with an eye to linking to national data collection efforts.
@@ -38,7 +38,7 @@ We anticipated some statistical challenges.  Sensitivities and specificities var
 
 In addition to adjusting for measurement error, we need to normalize for variation of this population demographics compared to the actual community.  We expected that we would be helped by having a fairly representative group to begin with and hoped that poststratification to the target population would help enhance the accuracy of our conclusions.
 
-We are interested in rates of coronavirus exposure, both among hospital patients and in the larger community.  We recognize that patients, even asymptomatic patients, are not representative of the general population; nonetheless adjusting for demographics and geography is a start.  Multilevel regression and poststratification (MRP) is a standard method of adjustment used in survey research that is particularly effective when sample sizes are small in some demographic or geographic slices of the data [@gelman:little-97; @prior-si2018].  We use the Bayesian approach of @specificity:gelman20 to apply MRP to testing data with unknown sensitivity and specificity, here using the following adjustment variables: sex, age (0-17, 18-34, 35-64, and 65+), race (white, black and others), and county (Lake and Potter).
+We are interested in rates of coronavirus exposure, both among hospital patients and in the larger community.  We recognize that patients, even asymptomatic patients, are not representative of the general population; nonetheless adjusting for demographics and geography is a start.  Multilevel regression and poststratification (MRP) is a standard method of adjustment used in survey research that is particularly effective when sample sizes are small in some demographic or geographic slices of the data [@gelman:little:97; @prior-si2018].  We use the Bayesian approach of @specificity:gelman20 to apply MRP to testing data with unknown sensitivity and specificity, here using the following adjustment variables: sex, age (0-17, 18-34, 35-64, and 65+), race (white, black and others), and county (Lake and Potter).
 
 We poststratify to two different populations:  patients in the hospital and residents of Lake/Potter County, Indiana.  For the hospital, we use the following database to represent the population of inpatients from three hospitals in the Community Health Systems (Community Hospital, St. Catherine Hospital and St. Mary Medical Center).  For the community, we use the Americian Community Survey data from the three counties of interest.
 
@@ -95,6 +95,59 @@ library("shinystan")
 library("knitr")
 library("data.table")
 ```
+
+## Comparasion with State Website Data (focus on District 1)
+
+```{r, echo = FALSE, message=FALSE}
+state_data <- read.csv("./covid_report_county_region_date.csv")
+state_data <- janitor::clean_names(state_data)
+state_data = state_data%>%
+mutate(week_ind = week(strptime(date,"%Y-%m-%d")),
+       day_ind = yday(strptime(date,"%Y-%m-%d")),
+       positive_rate = covid_count/covid_test
+       )
+#Calculate day level prevalence
+state_data_by_day <- state_data %>% 
+  filter(district == '1',
+         day_ind != 253) %>% 
+  group_by(day_ind) %>% 
+  summarize(
+    total_test = sum(covid_test),
+    prevalence = sum(covid_count)/total_test
+  ) %>% 
+  filter(
+   !is.na(prevalence) #remove missing data at beginning 
+  )
+
+ggplot(data =state_data_by_day, aes(x = day_ind,y = prevalence))+
+  geom_point() +
+  geom_line()+
+  labs(title = "", x = "Day", y = "Prevalence")+
+  theme_bw()
+
+#Calculate week level prevalence
+state_data_by_week <- state_data %>% 
+  filter(district == '1',
+         week_ind != 37) %>% #Remove latest week imcomplete data 
+  group_by(week_ind) %>% 
+  summarize(
+    total_test = sum(covid_test),
+    prevalence = sum(covid_count)/total_test
+  ) %>% 
+  filter(
+   !is.na(prevalence) #remove missing data at beginning 
+  )
+
+ggplot(data =state_data_by_week, aes(x = week_ind,y = prevalence))+
+  geom_point() +
+  geom_line()+
+  labs(title = "", x = "Week", y = "Prevalence")+
+  theme_bw()
+
+
+```
+
+
 
 ## Data Import and Manipulation
 
@@ -199,6 +252,7 @@ mutate(pcr_week_ind = week(strptime(result_date_time,"%m/%d/%Y %H:%M")),
        )
 str(patient_data_symptomatic)
 ```
+
 
 We should be careful regarding missing data. Here we check whether there is any missing data in age, gender, race and PCR test result. Also the data quality might be a concern, for example, in symptotic patients data, patient with id 31545242 had Speciman Date & Time on 6/9/2020, but IGG SPECIMEN_TAKEN_TIME on 4/30/2020, so there might be some incorrespondence but I did not adjust for it here. Also there might be some duplicated samples, for example, in symptotic patients data, patient with id 31545242 appeared twice. 
 
@@ -1155,6 +1209,59 @@ ggplot(data=IGG_est_raw_symptomatic, aes(x=week,y=est,group=type,colour=type))+
 
 
 ```
+
+
+## Model time using GP
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+#Perform MRP for asymptotic patients
+
+patient_data = patient_data%>%
+  mutate(
+    sex_age = ifelse(sex_stan==-0.5 & age_stan ==1, 1,
+              ifelse(sex_stan==-0.5 & age_stan ==2, 2,
+              ifelse(sex_stan==-0.5 & age_stan ==3, 3,
+              ifelse(sex_stan==-0.5 & age_stan ==4, 4,
+              ifelse(sex_stan==0.5 & age_stan ==1, 5,
+              ifelse(sex_stan==0.5 & age_stan ==2, 6,
+              ifelse(sex_stan==0.5 & age_stan ==3, 7,8))))))))
+
+pcr_data_stan_GP <- list(N=dim(patient_data)[1], y=patient_data$y_response,
+                   J_time=length(unique(patient_data$pcr_week_ind)),
+                   male=patient_data$sex_stan, race=as.numeric(patient_data$race_stan), age=as.numeric(patient_data$age_stan), 
+week=patient_data$pcr_week_ind-17,
+week_real=c(rep(1:15)),
+county = patient_data$county_stan,
+sex_age=patient_data$sex_age,
+J_spec=14, y_spec=c(0, 368, 30, 70, 1102, 300, 311, 500, 198, 99, 29, 146, 105, 50), n_spec=c(0, 371, 30, 70, 1102, 300, 311, 500, 200, 99, 31, 150, 108, 52), J_sens=4, y_sens=c(70, 78, 27, 25), n_sens=c(100, 85, 37, 35), logit_spec_prior_scale=0.2, logit_sens_prior_scale=0.2, intercept_prior_mean=0, intercept_prior_scale=2.5, coef_prior_scale=2.5, J=2*3*4*2, N_pop=poststratification_table_nozip$N, N_acs = county.ps)
+
+#fit_pcr_GP <- stan(file = "MRP_pcr_GP.stan", data = pcr_data_stan_GP,refresh=0, cores=8,iter = 10000,chains=2) 
+#print(fit_pcr_GP, pars=c("p_avg_h","p_avg_c"), digits=3)
+#saveRDS(fit_pcr_GP, "fit_pcr_GP.rds")
+fit_pcr_GP <- readRDS("./fit_pcr_GP.rds")
+
+###Plotting
+est_raw_GP = data.frame(cbind(rep(c("Raw","MRP-hospital","MRP-community"),each=length(unique(PCR_prevalence_by_week$pcr_week_ind))),rep(PCR_prevalence_by_week$pcr_week_ind,3),c(PCR_prevalence_by_week$prevalence,apply(rstan::extract(fit_pcr_GP,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(fit_pcr_GP,"p_avg_c", permuted = TRUE)[[1]],2,mean)),c(PCR_prevalence_by_week$prevalence,apply(rstan::extract(fit_pcr_GP,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.025)),apply(rstan::extract(fit_pcr_GP ,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.025))),c(PCR_prevalence_by_week$prevalence,apply(rstan::extract(fit_pcr_GP,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)),apply(rstan::extract(fit_pcr_GP ,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)))))
+names(est_raw_GP )=c("type","week","est","low","up")
+est_raw_GP $week = as.numeric(as.character(est_raw_GP$week))
+est_raw_GP $est = as.numeric(as.character(est_raw_GP$est))
+est_raw_GP $low = as.numeric(as.character(est_raw_GP$low))
+est_raw_GP $up = as.numeric(as.character(est_raw_GP$up))
+
+ggplot(data=est_raw_GP, aes(x=week,y=est,group=type,colour=type))+
+  geom_point(aes(shape=type))+
+  geom_line(aes(linetype=type))+
+  labs (title = "", x = "Week", y = "PCR Prevalence")+
+  theme_bw()+theme(legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
+
+ggplot(data=est_raw_GP , aes(x=week,y=est,group=type,colour=type))+
+  geom_point(aes(shape=type))+
+  geom_line(aes(linetype=type),alpha=0.4)+
+  geom_errorbar(aes(ymin=low, ymax=up,linetype=type), width=0.1,alpha=0.4)+
+  labs (title = "", x = "Week", y = "PCR Prevalence")+
+  theme_bw()+theme(legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
+```
+
 
 <!-- Here we sumamrize the MRP results based on asymptimatic patients as following:  -->
 
