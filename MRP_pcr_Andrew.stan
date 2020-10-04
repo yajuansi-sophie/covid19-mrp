@@ -8,7 +8,7 @@ data {
   int<lower = 1, upper = 5> age[N];  // 1=0-17, 2=18-39, 3=40-64, 4=65-75, 5 = 75+
   int<lower = 1, upper = J_time> week[N];
   int<lower = 1, upper = 2> county[N];
-  int<lower = 1, upper = 10> sex_age[N];
+  int<lower = 1, upper = 5> sex_age[N];
   //int<lower = 0> N_zip;  // number of zip codes (58 in this case)
   //int<lower = 1, upper = N_zip> zip[N];  // zip codes 1 through 58
   //vector[N_zip] x_zip;  // predictors at the zip code level
@@ -47,18 +47,21 @@ parameters {
   //vector<multiplier = sigma_zip>[N_zip] a_zip;  // varying intercepts for zip code
   vector<multiplier = sigma_county>[2] a_county;
   vector<multiplier = sigma_time>[J_time] a_time;
-  vector<multiplier = sigma_sexage>[10] a_sexage;
+  vector<multiplier = sigma_sexage>[5] a_sexage;
 }
 transformed parameters { 
   vector[J_spec] spec; 
   vector[J_sens] sens;
+  vector[N] a_sexage_trans;
   spec = inv_logit(logit_spec); 
   sens = inv_logit(logit_sens);
+  for (i in 1:N)
+  a_sexage_trans[i] = (male[i] + 0.5)*a_sexage[sex_age[i]];
 }
 model {
   vector[N] p;
   vector[N] p_sample;
-  p = inv_logit(b[1] + b[2]*male  + a_race[race] + a_age[age] +a_sexage[sex_age]+ a_time[week] + a_county[county]); 
+  p = inv_logit(b[1] + b[2]*male  + a_race[race] + a_age[age] + a_sexage_trans + a_time[week] + a_county[county]); 
   p_sample = p*sens[1] + (1-p)*(1-spec[1]);
   y ~ bernoulli(p_sample);
   y_spec ~ binomial(n_spec, spec);
@@ -101,7 +104,7 @@ for (time in 1:J_time){
           p_pop[count] = inv_logit(b[1]
                                    + b[2] * (i_male - 0.5)
                                    + a_race[i_race]
-                                   + a_age[i_age]+a_time[time]+a_sexage[i_male*2+i_age] + a_county[i_county]);
+                                   + a_age[i_age]+a_time[time]+i_male*a_sexage[i_age] + a_county[i_county]);
           count += 1;
       }
     }

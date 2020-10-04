@@ -5,10 +5,10 @@ data {
   int<lower = 1> J_time; //#weeks
   vector[N] male;  // -0.5 if female, 0.5 if male. Could add constraint back if we use 0/1 coding
   int<lower = 1, upper = 3> race[N];  // 1=white, 2=black, 3=other
-  int<lower = 1, upper = 5> age[N];  // 1=0-17, 2=18-39, 3=40-64, 4=65-75, 5 = 75+
+  int<lower = 1, upper = 5> age[N];  // 1=0-17, 2=18-39, 3=40-64, 4=65+
   int<lower = 1, upper = J_time> week[N];
   int<lower = 1, upper = 2> county[N];
-  int<lower = 1, upper = 10> sex_age[N];
+  //int<lower = 1, upper = 8> sex_age[N];
   //int<lower = 0> N_zip;  // number of zip codes (58 in this case)
   //int<lower = 1, upper = N_zip> zip[N];  // zip codes 1 through 58
   //vector[N_zip] x_zip;  // predictors at the zip code level
@@ -18,7 +18,7 @@ data {
   int<lower = 0> J_sens;
   int<lower = 0> y_sens [J_sens];
   int<lower = 0> n_sens [J_sens];
-  int<lower = 0> J;  // number of population cells, J = 2*3*5*2
+  int<lower = 0> J;  // number of population cells, J = 2*4*3*3
   vector<lower = 0>[J] N_pop;  // population sizes for poststratification
   vector<lower = 0>[J] N_acs;  // population sizes for poststratification
   real intercept_prior_mean;
@@ -40,14 +40,14 @@ parameters {
   real<lower = 0> sigma_age;
   real<lower = 0> sigma_time;
   real<lower = 0> sigma_county;
-  real<lower = 0> sigma_sexage;
+  //real<lower = 0> sigma_sexage;
   //real<lower = 0> sigma_zip;
   vector<multiplier = sigma_race>[3] a_race;  // varying intercepts for ethnicity
   vector<multiplier = sigma_age>[5] a_age;  // varying intercepts for age category
   //vector<multiplier = sigma_zip>[N_zip] a_zip;  // varying intercepts for zip code
   vector<multiplier = sigma_county>[2] a_county;
   vector<multiplier = sigma_time>[J_time] a_time;
-  vector<multiplier = sigma_sexage>[10] a_sexage;
+  //vector<multiplier = sigma_sexage>[8] a_sexage;
 }
 transformed parameters { 
   vector[J_spec] spec; 
@@ -58,7 +58,7 @@ transformed parameters {
 model {
   vector[N] p;
   vector[N] p_sample;
-  p = inv_logit(b[1] + b[2]*male  + a_race[race] + a_age[age] +a_sexage[sex_age]+ a_time[week] + a_county[county]); 
+  p = inv_logit(b[1] + b[2]*male  + a_race[race] + a_age[age] + a_time[week] + a_county[county]); 
   p_sample = p*sens[1] + (1-p)*(1-spec[1]);
   y ~ bernoulli(p_sample);
   y_spec ~ binomial(n_spec, spec);
@@ -71,7 +71,7 @@ model {
   a_age ~ normal(0, sigma_age);
   a_time ~ normal(0, sigma_time);
   a_county ~ normal(0, sigma_county);
-  a_sexage ~ normal(0, sigma_sexage);
+  //a_sexage ~ normal(0, sigma_sexage);
   //a_zip ~ normal(0, sigma_zip);
   // prior on centered intercept
   //b[1] + b[2] * mean(male) + b[3] * mean(x_zip[zip])
@@ -83,7 +83,7 @@ model {
   sigma_age ~ normal(0, coef_prior_scale);
   sigma_time ~ normal(0, coef_prior_scale_time);
   sigma_county ~ normal(0, coef_prior_scale);
-  sigma_sexage ~ normal(0, coef_prior_scale);
+  //sigma_sexage ~ normal(0, coef_prior_scale);
   //sigma_zip ~ normal(0, coef_prior_scale);
   //b[3] ~ normal(0, coef_prior_scale / sd(x_zip[zip]));  // prior on scaled coefficient
 }
@@ -101,7 +101,7 @@ for (time in 1:J_time){
           p_pop[count] = inv_logit(b[1]
                                    + b[2] * (i_male - 0.5)
                                    + a_race[i_race]
-                                   + a_age[i_age]+a_time[time]+a_sexage[i_male*2+i_age] + a_county[i_county]);
+                                   + a_age[i_age]+a_time[time]+ a_county[i_county]);
           count += 1;
       }
     }
