@@ -1,7 +1,7 @@
 ---
 title: "A design for hospital-based coronavirus tracking"
 author: "Len Covello, Andrew Gelman, Yajuan Si, and Siquan Wang"
-date: "10/12/2020"
+date: "10/19/2020"
 output:
   word_document: default
   pdf_document: default
@@ -10,39 +10,35 @@ output:
 bibliography: covid20.bib
 ---
 
-In the presence of an epidemic, it is important for hospitals and health maintenance organizations to have indications of changes in rates of exposure among patients and the general population. We present here an approach to collecting and analyzing data on viral exposure among patients in a hospital system and performing statistical adjustment to estimate viral incidence and trends in the community. We are currently applying this monitoring and analysis protocol in a small hospital system in Indiana, and this could serve as a model for other medical groups to perform local data collection and analysis, ultimately with an eye to linking to national data collection efforts and population generalizability.
+In the presence of an epidemic, it is important for both governmental and healthcare organizations to have indications of changes in rates of exposure among patients and the general population. We present here an approach to collecting and analyzing data on viral exposure among patients in a hospital system and performing statistical adjustment to estimate viral incidence and trends in the community. We are currently applying this monitoring and analysis protocol in a hospital system in Indiana, and this could serve as a model for other medical groups to perform local data collection and analysis, ultimately with an eye to linking to national data collection efforts and population generalizability.
 
 
 # The Problem
 
-Knowledge of incidence and trends of viral behavior in communities is important and, as yet, poorly characterized. As we transitioned in our area of interest (Munster, Indiana, a suburb of Chicago) from a high clinical burden of disease in an economically closed environment into a decreasing burden with increased social and business commerce, it was apparent that we lacked a means of deciding how our actions were influencing virus behavior. At the onset of the disease in the U.S., we had the luxury of internalizing the experiences of Italy, Spain, and eastern Asia in modeling what the illness metrics might be without needing to be too clever. As there was a strong political motivation here to increase human interaction well ahead of virus mitigation experienced elsewhere, we were to be a vanguard of reopening and needed to develop our own predictors.
+Knowledge of incidence and trends of viral behavior in communities is important and, as yet, poorly characterized.  In the absence of publicly mandated or academically sponsored random testing, interested parties have been left to extrapolate impressions of community viral behavior from nonrandom sources.  Generally, public health professionals have relied on state-sourced positivity rates and raw numbers of positive tests in any given jurisdiction as proxies for the true viral burden. Unfortunately, these presumed proxies are subject to significant selection bias, as most testing protocols understandably target symptomatic and presumed-exposed populations. Further, the tests have been applied with different criteria over time and geography according to test availability, perceived community viral burden, and disparate clinical or political testing norms. Indeed, academic and public health entities have found it challenging to translate current available prevalence data into a characterization of true virus behavior.  Absent broad randomized testing—which has not occurred and does not seem to be forthcoming—we need a means of obtaining more nearly random data or a method of normalizing currently available data to the true underlying incidence. 
 
-There are two main types of tests for COVID-19. The first detects viral RNA using molecular methods such as polymerase chain reaction (PCR). These tests are highly specific because they are based on the unique genetic sequence of SARS-CoV-2. However, the sensitivity of these tests varies based on both the timing and the way the sample is collected. In contrast to nucleic acid testing, which directly detects the virus, antibody or serology testing is used to detect an immune response in the patient. Most patients have detectable IgG antibodies by day 14 following symptom onset, and the likelihood of detection increases over time.
+# Testing Regime
 
-At the time of conceiving this project, the country lacked uniform testing quality and capabilities. There was no acceptable proxy for random sampling of any community. Limited availability of testing meant only highly symptomatic individuals would be tested, skewing any interpretation of prevalence. Suspicions of asymptomatic incidence and spread of disease were developing and remain poorly characterized yet.
- 
-Our community needed a way of reliably assessing viral incidence and trends so as to prepare for hospital burdens effectively. There was a need for a random sample of the community or proxy thereof.
-
+There are two main types of tests for COVID-19. The first detects viral RNA using molecular methods such as polymerase chain reaction (PCR). These tests are highly specific because they are based on the unique genetic sequence of SARS-CoV-2. However, the sensitivity of these tests varies based on both the timing and the way the sample is collected. In contrast to nucleic acid testing, which directly detects the virus, antibody or serology testing is used to detect an immune response in the patient. Most patients have detectable IgG antibodies by day 14 following symptom onset, and the likelihood of detection initially increases over time, though there is substantial evidence that these antibodies become less detectable after a few months.
 
 # Proxy Sample
 
-We were fortunate in that the anesthesia professionals in our hospital system were sufficiently concerned about asymptomatic viral shedding to want to preoperatively test all patients. All elective surgical patients are presumptive asymptomatic, as anyone exhibiting symptoms would have surgery cancelled or deferred. This population presented a potentially valuable resource. There is a broad age, racial/ethnic, and economic diversity to this group, and its only overt correlation to disease status is that it is selected for a lack of symptoms. Such a group should behave more like the population as a whole with respect to the disease than the symptomatic population. Naturally, we would have preferred a sample chosen without reference to symptom status, but we feel that the current population, if not ideal, is the best that can be done under routine clinical circumstances. Further, if we were to extend testing beyond acute sampling for viral RNA to also include assay for IgG antibody, we would have an even better random proxy. That is, this group is not random with respect to acute disease, but should be quite nearly random with respect to a history of disease one month or more ago, for which the population IgG status wishes to identify. We were able to institute routine IgG testing for any preoperative patient who was otherwise requiring preoperative blood tests. Admittedly, this group trends somewhat older and sicker than the group at large (undergoing the PCR test), but still seems a fairly representative sample for our community at large.
-
+We were fortunate in that the anesthesia professionals in our hospital system were sufficiently concerned about asymptomatic viral shedding to want to preoperatively test all patients. All elective surgical patients are presumptive asymptomatic, as anyone exhibiting symptoms or presenting a recent history of known viral exposure would have surgery cancelled or deferred. This population presented a potentially valuable resource. There is a broad age, racial/ethnic, and economic diversity to this group, and its only overt correlation to disease status is that it is selected for a lack of symptoms and a negative exposure history. Such a group should behave more like the population as a whole with respect to the disease than the symptomatic population. Naturally, we would have preferred a random sample chosen without reference to symptom status, but we anticipate that the current population, if not ideal, is a promising proxy for inferring a true random sample. If we venture the hypothesis that, for any uniform demographic, the ratio of asymptomatic-to-symptomatic viral infection is constant (an unverified but reasonable assumption), then the asymptomatic population in a community would vary in strict ratio with overall prevalence. Thus, if we are able to normalize our test population to the true community demographics, we should have a very close approximation to a true random sample.
+Further, if we were to extend testing beyond acute sampling for viral RNA to also include assay for IgG antibody, we would have an even better random proxy for post infectious immune prevalence. That is, this group is not random with respect to acute disease, but should be quite nearly random with respect to a history of disease one month or more ago: the precise group the population IgG status wishes to identify. We were able to institute routine IgG testing for any preoperative patient who was otherwise requiring preoperative blood tests. Admittedly, this group trends somewhat older and sicker than the group at large (undergoing the PCR test), but still seems a fairly representative sample for our community at large; in particular, a truly representative sample if we are able to normalize for these skewed demographics.
+Of crucial importance, our sample group varies from a true random sample in predictable ways.  Both the PCR and IgG groups are certainly nonrandom, but both are selected rigorously for asymptomatic/nonexposed status, and their demographics are well documented within the hospital electronic health records (EHR).  It remains only to normalize our sample population to the true demographics of the community to achieve random sampling, to any reasonable approximation.  By poststratification to match demographics of the target community, we expect that our model is able to systematically adjust for these particular selection biases, allowing us to extrapolate our observations to some conclusions about the true population, to a reasonable degree of confidence.
 
 # Measurement
 
-We anticipated some statistical challenges. Sensitivities and specificities vary greatly among available testing regimens. We are using Abbott tests for which these parameters are reasonably stable and well analyzed. The PCR RNA test shares sensitivities similar to all the better tests out there. They all report a 70% sensitivity, but that is standardized by detection of RNA in strongly symptomatic patients. There is a fair amount of data to suggest that asymptomatic and presymptomatic patients are both harder to detect than the highly symptomatic ones and that the date of infection and symptom onset have a large effect on the sensitivity. These effects would need to be acknowledged and, to the degree possible, accounted for in the model. Specificity is likely to be theoretically 100%; the only false positives should be cross contaminated or switched samples. However, even very small false positive rates can result in large uncertainties about exposure rates if underlying prevalence is low enough. Matching the RNA sequence of interest at the detection threshold should be virtually impossible mathematically with the viruses involved. The IgG test also has high sensitivity and specificity, but we would need these statistics respected in the model, unlike in some other reported data sets.
-
+We anticipated some statistical challenges. Sensitivities and specificities vary greatly among available testing regimens. We are using Abbott tests for which these parameters are reasonably stable and well analyzed. The PCR RNA test shares sensitivities similar to all the better tests out there. They all report a 70% sensitivity, but that is standardized by detection of RNA in strongly symptomatic patients. There is a fair amount of data to suggest that asymptomatic and pre-symptomatic patients are both harder to detect than the highly symptomatic ones and that the date of infection and symptom onset have a large effect on the sensitivity (Kucirka et al. 2020). These effects would need to be acknowledged and, to the degree possible, accounted for in the model. Specificity is likely to be theoretically 100%; the only false positives should be cross contaminated or switched samples. A random match to the RNA sequence of interest by a non SARS-CoV-2 virus at the detection threshold should be virtually impossible mathematically with the viruses involved. However, even very small false positive rates can result in large uncertainties about exposure rates if underlying prevalence is low enough. The IgG test also has high sensitivity (70%) and specificity (100%), but we would need these statistics respected in the model.
 
 # Statistical analysis
 
-In addition to adjusting for measurement error, we need to normalize for variation of this population demographics compared to the actual community. We expected that we would be helped by having a fairly representative group to begin with and hoped that poststratification to the target population would help enhance the accuracy of our conclusions.
+In addition to adjusting for measurement error, we need to normalize for variation of this population demographics compared to the actual community. We expected that we would be helped by having a fairly representative group to begin with and that poststratification to the target population would help enhance the accuracy of our conclusions.
+We are interested in rates of coronavirus exposure, both among hospital patients and in the larger community. We recognize that patients, even asymptomatic patients, are not representative of the general population; nonetheless adjusting for demographics and geography is a start. Multilevel regression and poststratification (MRP) is a standard method of adjustment used in survey research that is particularly effective when sample sizes are small in some demographic or geographic slices of the data (Gelman and Little 1997; Si et al. 2020). We use the Bayesian approach of Gelman and Carpenter (2020) to account for unknown sensitivity and specificity and apply MRP to testing data for population representation, here using the following adjustment variables: sex, age (0-17, 18-34, 35-64, 65-74 and 75+), race (white, black and others), and county (Lake and Porter).
 
-We are interested in rates of coronavirus exposure, both among hospital patients and in the larger community. We recognize that patients, even asymptomatic patients, are not representative of the general population; nonetheless adjusting for demographics and geography is a start. Multilevel regression and poststratification (MRP) is a standard method of adjustment used in survey research that is particularly effective when sample sizes are small in some demographic or geographic slices of the data (Gelman and Little 1997; Si et al. 2020). We use the Bayesian approach of Gelman and Carpenter (2020) to apply MRP to testing data with unknown sensitivity and specificity, here using the following adjustment variables: sex, age (0-17, 18-34, 35-64, 65-75, and 75+), race (white, black and others), and county (Lake and Potter).
-
-We poststratify to two different populations: patients in the hospital and residents of Lake/Potter County, Indiana. For the hospital, we use the following database to represent the population of inpatients from three hospitals in the Community Health Systems (Community Hospital, St. Catherine Hospital and St. Mary Medical Center). For the community, we use the American Community Survey (ACS) 2014-2018 data from the three counties of interest.
-
+We poststratify to two different populations: patients in the hospital database (i.e., those who have historically and currently obtained care in our regional hospital system) and residents of Lake/Porter County, Indiana. For the hospital, we use the following EHR database to represent the population of inpatients from three hospitals in the Community Health Systems (Community Hospital, St. Catherine Hospital and St. Mary Medical Center). For the community, we use the American Community Survey (ACS) 2014-2018 data from the two counties of interest.
 In addition, we are interested in changes over time. Indeed, even if our demographic and geographic adjustment is suspect (given systematic differences between sample and populations), we still can learn from time trends, and here the adjustment is particularly important, given the way the mix of patients has changed during the past few months.
+
 
 We use the following model of changes in the multilevel regression parameters over time.
 
@@ -51,22 +47,19 @@ We use the following model of changes in the multilevel regression parameters ov
 \pi_i=\textrm{logit}^{-1}(\beta_1 + \beta_2*male_i + \alpha^{\textrm{age}}_{age[i]} + \alpha^{\textrm{race}}_{race[i]}+\alpha^{\textrm{time}}_{time[i]}+\alpha^{\textrm{county}}_{county[i]}+\alpha^{\textrm{age * male}}_{age*male[i]}),
 \end{align}
 
-where $\pi_i$ is the viral incidence of individual i, $male$ with value 0.5 indicates men and -0.5 for women, $age[i], race[i]$, and $county[i]$ represent age, race and county categories, $time[i]$ indices the time in weeks when the test result is observed for individual $i$; and the $\alpha$ parameters are vectors of varying intercepts. We assign hierarchical priors to the varying intercepts
+where $\pi_i$ is the viral incidence of individual i, $male$ with value 0.5 indicates men and -0.5 for women, $age[i], race[i]$, and $county[i]$ represent age, race and county categories, with a two-way interactiont term $age * male[i]$, $time[i]$ indices the time in weeks when the test result is observed for individual $i$; and the $\alpha$ parameters are vectors of varying intercepts. We assign hierarchical priors to the varying intercepts
 \begin{align}
 \label{prior}
-\alpha^{name} \sim \textrm{normal}(0, \sigma^{name})\mbox{, }\sigma^{name}\sim \textrm{normal}_{+}(0, 2.5)\mbox{, for }name \in {age, race, county, time}.
+\alpha^{name} \sim \textrm{normal}(0, \sigma^{name})\mbox{, }\sigma^{name}\sim \textrm{normal}_{+}(0, 2.5)\mbox{, for }name \in {age, race, county, age * male}.
 \end{align}
-
-We perform all computations in Stan and R [Python], and all data and code are available at [Github site].
+And we set $\alpha^{time} \sim \textrm{normal}(0, \sigma^{time})$, $\sigma^{time}\sim \textrm{normal}_{+}(0, 5)$ to allow a large variation across time.
+We perform all computations in Stan and R, and all data and code are available at \url{https://github.com/yajuansi-sophie/covid19-mrp}.
 
 
 # Pre-study conjectures
 
-We began the data collection with a few hypotheses or speculations. First, that the ratio between asymptomatic and symptomatic patients would be relatively constant. Second, that changes in asymptomatic measurable RNA would precede parallel changes in symptomatic measurable RNA by a couple of days, given the known temporal relationship of viral shedding to the onset of clinical disease. Third, that trends in our asymptomatic RNA positives would therefore parallel and predict the behavior of the virus within the community as a whole.
-
+We began the data collection with a few hypotheses or speculations. First, that the ratio between asymptomatic and symptomatic patients would be relatively constant, for a uniform demographic distribution. Second, that changes in asymptomatic measurable RNA would precede parallel changes in symptomatic measurable RNA by a couple of days, given the known temporal relationship of viral shedding to the onset of clinical disease. Third, that trends in our asymptomatic RNA positives would therefore parallel and predict the behavior of the virus within the community as a whole.
 In summary, we anticipated that appropriate modeling of the RNA dataset would allow us to measure changes in acute viral infectious incidence early in the trend so as to stay ahead of the disease, or at least in concert with any changes. Further, we hoped that accumulation of IgG data and its intelligent analysis would help us to understand increasing immunity in the community from viral exposure and perhaps, evidence for a loss of immunity with time, should the IgG positivity flatten or decrease.
-
-
 
 
 # Analytic Results
@@ -145,9 +138,9 @@ ggplot(data =state_data_by_week, aes(x = week_ind,y = prevalence))+
   geom_line()+
   labs(title = "COVID-19 prevalence in District 1, Indiana", x = "Week", y = "Prevalence")+
   scale_y_continuous(expand = c(0, 0), limits = c(0, 0.25))+
-  scale_x_continuous(breaks=seq(from=10,to=39, by = 1),labels = c("Mar03 - Mar09","Mar10 - Mar16","Mar17 - Mar23","Mar24 - Mar30","Mar31 - Apr6","Apr7 - Apr13","Apr14 - Apr20","Apr21 - Apr27","Apr28 - May4","May5 - May11",
+  scale_x_continuous(breaks=seq(from=10,to=40, by = 1),labels = c("Mar03 - Mar09","Mar10 - Mar16","Mar17 - Mar23","Mar24 - Mar30","Mar31 - Apr6","Apr7 - Apr13","Apr14 - Apr20","Apr21 - Apr27","Apr28 - May4","May5 - May11",
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
-                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21","Sep22 - Sep28"))+
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21","Sep22 - Sep28", "Sep29 - Oct5"))+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 ggsave(file="plot/dist1.png")
@@ -261,7 +254,7 @@ mutate(pcr_week_ind = week(strptime(result_date_time,"%m/%d/%Y %H:%M")),  #Need 
        )
 str(patient_data)
 
-patient_data_symptomatic <- read_csv(file = "./UM725 symptomatic date.csv", na = c("", "#NUM!"))
+patient_data_symptomatic <- read_csv(file = "./UM1008sx.csv", na = c("", "#NUM!"))
 patient_data_symptomatic  <- janitor::clean_names(patient_data_symptomatic )
 
 patient_data_symptomatic = patient_data_symptomatic%>%
@@ -680,10 +673,6 @@ kable(table1, caption = "Summary of test results and sociodemographics", digits 
 <!-- [Plot of raw data over time] -->
 We are also interested in the time trend of the prevalence across the data we have. Specifically, we are interested in how the prevalence changes over time and whether the ratio between asymptomatic and symptomatic patients would be relatively constant across time. Besides, all the patients recored had the PCR test results but only a few of them have IGG results, so we are also interested in the correspondence between these two test results.
 
-There are few patients patients data measured far before it or without an date so we dimply drop them off. To make the timing framework same as in asmptotic patients group and symptotic patients group, we unified the starting time as 5/2/2020 for both PCR and IGG tests, in both asymptotic and sumptotic patients.
-
-We first present the prevalence over time for asymptomatic patients:  for PCR test results we observed a peak in Week 3, then it dropped but recently started to rise again, while the IGG test we observed a peak at the begining, but this might because of the limited number of tests conducted and the positive rate of IGG test is decreasing over time. Notice that the reason why in Week 13 (the most recent week) the prevalence is 0 is because that many of the patients did not have their test results released yet.
-
 
 ```{r, echo = FALSE, message=FALSE}
 #For asymptomatic patients data
@@ -805,7 +794,7 @@ patient_data %>%
   ) %>% kable(digits = 3, caption="When two test results are different for asymptomatic patients")
 ```
 
-Then we presented the results for symptomatic patients: The start time is also 5/2/2020 for both PCR and IGG tests, and for PCR test results we observed a peak in Week 9 and it started to rise again recently while the IGG test prevalence reached its peak also in Week 9 but started to decrease recently. 
+Then we presented the results for symptomatic patients.
 
 ```{r, echo = FALSE,message=FALSE}
 #For symptomatic patients data
@@ -841,12 +830,12 @@ PCR_prevalence_by_week_symptomatic <- patient_data_symptomatic %>%
 PCR_prevalence_by_week_symptomatic_plot <- ggplot(data =PCR_prevalence_by_week_symptomatic, aes(x = as.numeric(pcr_week_ind),y = prevalence))+
   geom_point() +
   geom_line()+
-  scale_x_continuous(breaks=seq(18,30,3))+
+  scale_x_continuous(breaks=seq(18,41,3))+
   labs(title = "Symptomatic Patients", x = "Week", y = "PCR Prevalence")+
   scale_y_continuous(expand = c(0, 0), limits = c(0, 0.25))+
-  scale_x_continuous(breaks=seq(from=19,to=30, by = 1),labels = c("May5 - May11",
+  scale_x_continuous(breaks=seq(from=min(PCR_prevalence_by_week_symptomatic$pcr_week_ind),to=max(PCR_prevalence_by_week_symptomatic$pcr_week_ind), by = 1),labels = c("May5 - May11",
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
-                                                                "July21 - July27"))+
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12"))+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 
@@ -879,12 +868,12 @@ IGG_prevalence_by_week_symptomatic <- patient_data_symptomatic %>%
 IGG_prevalence_by_week_symptomatic_plot <- ggplot(data =IGG_prevalence_by_week_symptomatic, aes(x = as.numeric(igg_week_ind),y = prevalence))+
   geom_point() +
   geom_line()+
-  scale_x_continuous(breaks=seq(18,30,3))+
+  scale_x_continuous(breaks=seq(18,41,3))+
   labs(title = "Symptomatic Patients", x = "Week", y = "IgG Prevalence")+
   scale_y_continuous(expand = c(0, 0), limits = c(0, 0.8))+
-  scale_x_continuous(breaks=seq(from=18,to=30, by = 1),labels = c("Apr28 - May4","May5 - May11",
+  scale_x_continuous(breaks=seq(from=min(IGG_prevalence_by_week_symptomatic$igg_week_ind),to=max(IGG_prevalence_by_week_symptomatic$igg_week_ind), by = 1),labels = c("Apr28 - May4","May5 - May11",
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
-                                                                "July21 - July27"))+
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12"))+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 
@@ -908,26 +897,26 @@ grid.arrange(PCR_prevalence_by_week_plot,
 Finally we would like to examine the hypothesis that whether the ratio between asymptomatic and symptomatic patients would be relatively constant across time. Since the available starting date of the asymptomatic and symptomatic patients dataset are not the same, we unified the time framekwork  and we should avoid looking at the tails. From the graph we conclude that the ratio between asymptomatic and symptomatic patients would be relatively constant across time.
 
 ```{r, echo = FALSE,message=FALSE}
-ratio_approximated <- PCR_prevalence_by_week$total_patient[2:13]/ PCR_prevalence_by_week_symptomatic$total_patient
-count_comparison <- data.frame(PCR_prevalence_by_week$pcr_week_ind[2:13], ratio_approximated)
+ratio_approximated <- PCR_prevalence_by_week$total_patient[2:23]/ PCR_prevalence_by_week_symptomatic$total_patient[1:22]
+count_comparison <- data.frame(PCR_prevalence_by_week$pcr_week_ind[2:23], ratio_approximated)
 
 #kable(data.frame(seq(1:length(ratio_approximated)), ratio_approximated),
 #      col.names = c("Week starting from 5/2/2020", #"Approximated Ratio"), digits = 3)
-
+quantile(count_comparison$ratio_approximated, probs = c(0.025,0.975))
 count_comparison_plot <- ggplot(data =count_comparison, aes(x = count_comparison[,1] ,y =  count_comparison[,2] ))+
   geom_point() +
   geom_line()+
-  labs(title = "", x = "Week", y = "Ratio of asymptomatic and symptomatic PCR tests")+
+  labs(title = "", x = "Week", y = "Count ratio of asymptomatic and symptomatic PCR tests")+
   scale_y_continuous(expand = c(0, 0), limits = c(0, 30))+
-  scale_x_continuous(breaks=seq(from=19,to=30, by = 1),labels = c("May5 - May11",
+  scale_x_continuous(breaks=seq(from=min(count_comparison$PCR_prevalence_by_week.pcr_week_ind.2.23.),to=max(count_comparison$PCR_prevalence_by_week.pcr_week_ind.2.23.), by = 1),labels = c("May5 - May11",
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
-                                                                "July21 - July27"))+
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5"))+
   theme_bw()+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),axis.text.y = element_text(size=9))
 ggsave(count_comparison_plot, file="plot/pcr_asym_sym_ct.png")
 
-IGG_ratio_approximated <- IGG_prevalence_by_week$total_patient[1:13]/ IGG_prevalence_by_week_symptomatic$total_patient
-IGG_count_comparison <- data.frame(IGG_prevalence_by_week$igg_week_ind[1:13], IGG_ratio_approximated)
+IGG_ratio_approximated <- IGG_prevalence_by_week$total_patient[1:23]/ IGG_prevalence_by_week_symptomatic$total_patient[1:23]
+IGG_count_comparison <- data.frame(IGG_prevalence_by_week$igg_week_ind[1:23], IGG_ratio_approximated)
 
 #kable(data.frame(seq(1:length(ratio_approximated)), ratio_approximated),
 #      col.names = c("Week starting from 5/2/2020", #"Approximated Ratio"), digits = 3)
@@ -935,13 +924,13 @@ IGG_count_comparison <- data.frame(IGG_prevalence_by_week$igg_week_ind[1:13], IG
 IGG_count_comparison_plot <- ggplot(data =IGG_count_comparison, aes(x = IGG_count_comparison[,1] ,y =  IGG_count_comparison[,2] ))+
   geom_point() +
   geom_line()+
-  labs(title = "", x = "Week", y = "Ratio of asymptomatic and symptomatic IgG tests")+
+  labs(title = "", x = "Week", y = "Count ratio of asymptomatic and symptomatic IgG tests")+
   scale_y_continuous(expand = c(0, 0), limits = c(0, 15))+
-  scale_x_continuous(breaks=seq(from=18,to=30, by = 1),labels = c("Apr28 - May4","May5 - May11",
+  scale_x_continuous(breaks=seq(from=min(IGG_count_comparison$IGG_prevalence_by_week.igg_week_ind.1.23.),to=max(IGG_count_comparison$IGG_prevalence_by_week.igg_week_ind.1.23.), by = 1),labels = c("Apr28 - May4","May5 - May11",
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
-                                                                "July21 - July27"))+
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5"))+
   theme_bw()+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),axis.text.y = element_text(size=9))
 
 ggsave(IGG_count_comparison_plot, file="plot/igg_asym_sym_ct.png")
 grid.arrange(count_comparison_plot,
@@ -1003,15 +992,21 @@ sex_pct <- relative_pct[,1:3] %>%
 sex_pct_symptotic <- relative_pct_symptotic[,1:3] %>% 
   gather(gender,pct,2:3) %>% 
   mutate(Gender = ifelse(gender == "pct_male", "male_sym", "female_sym")) 
-
-ggplot()+
+sex_pct$pcr_week_ind=as.numeric(as.character(sex_pct$pcr_week_ind))
+sex_pct_symptotic$pcr_week_ind=as.numeric(as.character(sex_pct_symptotic$pcr_week_ind))
+sex_dist=ggplot()+
   geom_point(data =sex_pct, aes(x = pcr_week_ind,y = pct,group = Gender,color = Gender))+
   geom_point(data = sex_pct_symptotic, aes(x = pcr_week_ind,y = pct,group = Gender,color = Gender))+
   geom_line(data = sex_pct, aes(x = pcr_week_ind,y = pct,group = Gender,color = Gender), linetype = 2)+
   geom_line(data = sex_pct_symptotic, aes(x = pcr_week_ind,y = pct,group = Gender,color = Gender), linetype = 1)+
-  labs (title = "", x = "Week", y = "Proportion")+theme_bw()+
+  labs (title = "", x = "Week", y = "Proportion")+
+  scale_x_continuous(breaks=seq(from=min(sex_pct$pcr_week_ind),to=max(sex_pct$pcr_week_ind), by = 1),labels = c("Apr28 - May4","May5 - May11",
+                                                                "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5"))+
+  theme_bw()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),axis.text.y = element_text(size=9))+
   theme(legend.position="bottom",legend.text = element_text(size=8))
-  
+  ggsave(sex_dist, file="plot/sex_dist.png")
 ```
 
 ### Relative race pct over time
@@ -1027,14 +1022,22 @@ race_pct_symptotic <- relative_pct_symptotic[,c(1,9:11)] %>%
   gather(race,pct,2:4) %>% 
   mutate(Race = ifelse(race == "pct_white", "white_sym", ifelse(race == "pct_black", "black_sym","other_sym")))
 
+race_pct$pcr_week_ind=as.numeric(as.character(race_pct$pcr_week_ind))
+race_pct_symptotic$pcr_week_ind=as.numeric(as.character(race_pct_symptotic$pcr_week_ind))
 
-ggplot()+
+race_dist=ggplot()+
   geom_point(data =race_pct , aes(x = pcr_week_ind,y = pct,group = Race,color = Race))+
   geom_point(data = race_pct_symptotic, aes(x = pcr_week_ind,y = pct,group = Race,color = Race))+
   geom_line(data = race_pct , aes(x = pcr_week_ind,y = pct,group = Race,color = Race), linetype = 2)+
   geom_line(data = race_pct_symptotic, aes(x = pcr_week_ind,y = pct,group = Race,color = Race), linetype = 1)+
   labs (title = "", x = "Week", y = "Proportion")+
-  theme_bw()+theme(legend.position="bottom",legend.text = element_text(size=8))
+  scale_x_continuous(breaks=seq(from=min(race_pct$pcr_week_ind),to=max(race_pct$pcr_week_ind), by = 1),labels = c("Apr28 - May4","May5 - May11",
+                                                                "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5"))+
+  theme_bw()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),axis.text.y = element_text(size=9))+
+  theme(legend.position="bottom",legend.text = element_text(size=8))
+ggsave(race_dist, file="plot/race_dist.png")
 ```
 
 ### Relative age pct over time
@@ -1050,13 +1053,23 @@ age_pct_symptotic <- relative_pct_symptotic[,c(1,4:8)] %>%
   gather(age,pct,2:6) %>% 
   mutate(Age = ifelse(age == "pct_age0_17", "age0_17_sym", ifelse(age == "pct_age18_39", "age18_39_sym", ifelse(age == "pct_age40_64", "age40_64_sym", ifelse(age == "pct_age65_75", "age65_75_sym","age75_sym" )))))
 
-ggplot()+
+age_pct$pcr_week_ind=as.numeric(as.character(age_pct$pcr_week_ind))
+age_pct_symptotic$pcr_week_ind=as.numeric(as.character(age_pct_symptotic$pcr_week_ind))
+
+age_dist=ggplot()+
   geom_point(data =age_pct , aes(x = pcr_week_ind,y = pct,group = Age,color = Age))+
   geom_point(data = age_pct_symptotic, aes(x = pcr_week_ind,y = pct,group = Age,color = Age))+
   geom_line(data = age_pct , aes(x = pcr_week_ind,y = pct,group = Age,color = Age), linetype = 2)+
   geom_line(data = age_pct_symptotic, aes(x = pcr_week_ind,y = pct,group = Age,color = Age), linetype = 1)+
-  labs (title = "", x = "Week", y = "Proportion")+ theme_bw()+
+  labs (title = "", x = "Week", y = "Proportion")+ 
+  scale_x_continuous(breaks=seq(from=min(age_pct$pcr_week_ind),to=max(age_pct$pcr_week_ind), by = 1),labels = c("Apr28 - May4","May5 - May11",
+                                                                "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5"))+
+    theme_bw()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),axis.text.y = element_text(size=9))+
   theme(legend.position="bottom",legend.text = element_text(size=7))
+
+ggsave(age_dist, file="plot/age_dist.png")
 ```
 ## MRP
 
@@ -1116,15 +1129,21 @@ J_spec=14, y_spec=c(0, 368, 30, 70, 1102, 300, 311, 500, 198, 99, 29, 146, 105, 
 
 mrp_pcr_fit = readRDS("fit_pcr_1005_Andrew.rds")
 #mrp_pcr_fit=readRDS("fit_pcr_918_sen55.rds")
-mrp_pcr_fit=readRDS("fit_pcr_918_sen60.rds")
+#mrp_pcr_fit=readRDS("fit_pcr_918_sen60.rds")
 #mrp_pcr_fit=readRDS("fit_pcr_918_sen65.rds")
 
-est_raw_1 = data.frame(cbind(rep(c("Raw","MRP-hospital","MRP-community"),each=length(unique(PCR_prevalence_by_week$pcr_week_ind))),rep(PCR_prevalence_by_week$pcr_week_ind,3),c(PCR_prevalence_by_week$prevalence,apply(rstan::extract(mrp_pcr_fit,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(mrp_pcr_fit,"p_avg_c", permuted = TRUE)[[1]],2,mean)),c(PCR_prevalence_by_week$prevalence,apply(rstan::extract(mrp_pcr_fit,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.025)),apply(rstan::extract(mrp_pcr_fit,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.025))),c(PCR_prevalence_by_week$prevalence,apply(rstan::extract(mrp_pcr_fit,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)),apply(rstan::extract(mrp_pcr_fit,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)))))
-names(est_raw_1)=c("type","week","est","low","up")
+# est_raw_1 = data.frame(cbind(rep(c("Raw","MRP-hospital","MRP-community"),each=length(unique(PCR_prevalence_by_week$pcr_week_ind))),rep(PCR_prevalence_by_week$pcr_week_ind,3),c(PCR_prevalence_by_week$prevalence,apply(rstan::extract(mrp_pcr_fit,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(mrp_pcr_fit,"p_avg_c", permuted = TRUE)[[1]],2,mean)),c(PCR_prevalence_by_week$prevalence,apply(rstan::extract(mrp_pcr_fit,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.025)),apply(rstan::extract(mrp_pcr_fit,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.025))),c(PCR_prevalence_by_week$prevalence,apply(rstan::extract(mrp_pcr_fit,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)),apply(rstan::extract(mrp_pcr_fit,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)))))
+# names(est_raw_1)=c("type","week","est","low","up")
+# est_raw_1$week = as.numeric(as.character(est_raw_1$week))
+# est_raw_1$est = as.numeric(as.character(est_raw_1$est))
+# est_raw_1$low = as.numeric(as.character(est_raw_1$low))
+# est_raw_1$up = as.numeric(as.character(est_raw_1$up))
+
+est_raw_1 = data.frame(cbind(rep(c("Raw","MRP-hospital","MRP-community"),each=length(unique(PCR_prevalence_by_week$pcr_week_ind))),rep(PCR_prevalence_by_week$pcr_week_ind,3),c(PCR_prevalence_by_week$prevalence,apply(rstan::extract(mrp_pcr_fit,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(mrp_pcr_fit,"p_avg_c", permuted = TRUE)[[1]],2,mean)),c(rep(0,length(unique(PCR_prevalence_by_week$pcr_week_ind))),apply(rstan::extract(mrp_pcr_fit,"p_avg_h", permuted = TRUE)[[1]],2,sd),apply(rstan::extract(mrp_pcr_fit,"p_avg_c", permuted = TRUE)[[1]],2,sd))))
+names(est_raw_1)=c("type","week","est","sd")
 est_raw_1$week = as.numeric(as.character(est_raw_1$week))
 est_raw_1$est = as.numeric(as.character(est_raw_1$est))
-est_raw_1$low = as.numeric(as.character(est_raw_1$low))
-est_raw_1$up = as.numeric(as.character(est_raw_1$up))
+est_raw_1$sd = as.numeric(as.character(est_raw_1$sd))
 
 MRP_plot <- ggplot(data=est_raw_1, aes(x=week,y=est,group=type,colour=type))+
   geom_point(aes(shape=type))+
@@ -1135,22 +1154,36 @@ MRP_plot <- ggplot(data=est_raw_1, aes(x=week,y=est,group=type,colour=type))+
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5"))+
   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
-ggsave(MRP_plot, file="plot/pcr_mrp_est_sen65.png")
+ggsave(MRP_plot, file="plot/pcr_mrp_est.png")
 
-MRP_CI_plot <- ggplot(data=est_raw_1, aes(x=week,y=est,group=type,colour=type))+
+# MRP_CI_plot <- ggplot(data=est_raw_1, aes(x=week,y=est,group=type,colour=type))+
+#   geom_point(aes(shape=type))+
+#   geom_line(aes(linetype=type,colour=type),alpha=0.4)+
+#   geom_errorbar(aes(ymin=low, ymax=up,linetype=type), width=0.1,alpha=0.4)+
+#   labs (title = "", x = "Week", y = "PCR Prevalence")+
+#   scale_y_continuous(expand = c(0, 0), limits = c(0, 0.1 ))+
+#   scale_x_continuous(breaks=seq(from=min(est_raw_1$week),to=max(est_raw_1$week), by = 1),labels = c("Apr28 - May4","May5 - May11",
+#                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
+#                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5"))+
+#   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
+# ggsave(MRP_CI_plot, file="plot/pcr_mrp_ci.png")
+
+
+MRP_sd_plot <- ggplot(data=est_raw_1, aes(x=week,y=est,group=type,colour=type))+
   geom_point(aes(shape=type))+
-  geom_line(aes(linetype=type),alpha=0.4)+
-  geom_errorbar(aes(ymin=low, ymax=up,linetype=type), width=0.1,alpha=0.4)+
+  geom_line(aes(linetype=type,colour=type),alpha=0.4)+
+  geom_errorbar(aes(ymin=est-sd, ymax=est+sd,linetype=type), width=0.1,alpha=0.4)+
   labs (title = "", x = "Week", y = "PCR Prevalence")+
-  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.1 ))+
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.06 ))+
   scale_x_continuous(breaks=seq(from=min(est_raw_1$week),to=max(est_raw_1$week), by = 1),labels = c("Apr28 - May4","May5 - May11",
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5"))+
   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
-ggsave(MRP_CI_plot, file="plot/pcr_mrp_ci_sen65.png")
+ggsave(MRP_sd_plot, file="plot/pcr_mrp_sd.png")
 
+#est_raw_1[c(22:23,45:46,68:69),]
 grid.arrange(MRP_plot,
-             MRP_CI_plot, nrow = 1)
+             MRP_sd_plot, nrow = 1)
 #plot(apply(rstan::extract(fit_nozip,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(fit_nozip,"p_avg_c", permuted = TRUE)[[1]],2,mean))
 
 
@@ -1173,42 +1206,64 @@ J_spec=14, y_spec=c(0, 368, 30, 70, 1102, 300, 311, 500, 198, 99, 29, 146, 105, 
 N_acs = county.ps)
 
 #fit_pcr_symptomatic <- stan(file = 'MRP_pcr_Andrew.stan', data = pcr_data_stan_symptomatic, refresh=0, cores=8,iter = 10000, chains = 2)
-#saveRDS(fit_pcr_symptomatic, "fit_pcr_symptomatic0918a.rds")
+#saveRDS(fit_pcr_symptomatic, "fit_pcr_symptomatic1008.rds")
 
-fit_pcr_symptomatic=readRDS("fit_pcr_symptomatic0918a.rds")
+fit_pcr_symptomatic=readRDS("fit_pcr_symptomatic1008.rds")
 
-est_raw_symptomatic = data.frame(cbind(rep(c("Raw","MRP-hospital","MRP-community"),each=length(unique(PCR_prevalence_by_week_symptomatic$pcr_week_ind))),rep(PCR_prevalence_by_week_symptomatic$pcr_week_ind,3),c(PCR_prevalence_by_week_symptomatic$prevalence,apply(rstan::extract(fit_pcr_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(fit_pcr_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,mean)),c(PCR_prevalence_by_week_symptomatic$prevalence,apply(rstan::extract(fit_pcr_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.025)),apply(rstan::extract(fit_pcr_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.025))),c(PCR_prevalence_by_week_symptomatic$prevalence,apply(rstan::extract(fit_pcr_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)),apply(rstan::extract(fit_pcr_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)))))
-names(est_raw_symptomatic)=c("type","week","est","low","up")
+# est_raw_symptomatic = data.frame(cbind(rep(c("Raw","MRP-hospital","MRP-community"),each=length(unique(PCR_prevalence_by_week_symptomatic$pcr_week_ind))),rep(PCR_prevalence_by_week_symptomatic$pcr_week_ind,3),c(PCR_prevalence_by_week_symptomatic$prevalence,apply(rstan::extract(fit_pcr_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(fit_pcr_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,mean)),c(PCR_prevalence_by_week_symptomatic$prevalence,apply(rstan::extract(fit_pcr_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.025)),apply(rstan::extract(fit_pcr_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.025))),c(PCR_prevalence_by_week_symptomatic$prevalence,apply(rstan::extract(fit_pcr_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)),apply(rstan::extract(fit_pcr_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)))))
+# names(est_raw_symptomatic)=c("type","week","est","low","up")
+# est_raw_symptomatic$week = as.numeric(as.character(est_raw_symptomatic$week))
+# est_raw_symptomatic$est = as.numeric(as.character(est_raw_symptomatic$est))
+# est_raw_symptomatic$low = as.numeric(as.character(est_raw_symptomatic$low))
+# est_raw_symptomatic$up = as.numeric(as.character(est_raw_symptomatic$up))
+
+est_raw_symptomatic = data.frame(cbind(rep(c("Raw","MRP-hospital","MRP-community"),each=length(unique(PCR_prevalence_by_week_symptomatic$pcr_week_ind))),rep(PCR_prevalence_by_week_symptomatic$pcr_week_ind,3),c(PCR_prevalence_by_week_symptomatic$prevalence,apply(rstan::extract(fit_pcr_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(fit_pcr_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,mean)),c(rep(0,length(unique(PCR_prevalence_by_week_symptomatic$pcr_week_ind))),apply(rstan::extract(fit_pcr_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,sd),apply(rstan::extract(fit_pcr_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,sd))))
+names(est_raw_symptomatic)=c("type","week","est","sd")
 est_raw_symptomatic$week = as.numeric(as.character(est_raw_symptomatic$week))
 est_raw_symptomatic$est = as.numeric(as.character(est_raw_symptomatic$est))
-est_raw_symptomatic$low = as.numeric(as.character(est_raw_symptomatic$low))
-est_raw_symptomatic$up = as.numeric(as.character(est_raw_symptomatic$up))
+est_raw_symptomatic$sd = as.numeric(as.character(est_raw_symptomatic$sd))
+
 
 MRP_symptomatic_plot <- ggplot(data=est_raw_symptomatic, aes(x=week,y=est,group=type,colour=type))+
   geom_point(aes(shape=type))+
   geom_line(aes(linetype=type))+
-  labs (title = "", x = "Week", y = "PCR Prevalence for symptomatic patients")+
+  labs (title = "", x = "Week", y = "PCR Prevalence")+
   scale_y_continuous(expand = c(0, 0), limits = c(0, 0.3))+
   scale_x_continuous(breaks=seq(from=min(est_raw_symptomatic$week),to=max(est_raw_symptomatic$week), by = 1),labels = c("May5 - May11",
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
-                                                                "July21 - July27"))+
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Sep29 - Oct5"))+
     theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
 ggsave(MRP_symptomatic_plot, file="plot/pcr_mrp_sym_est.png")
 
-MRP_CI_symptomatic_plot <- ggplot(data=est_raw_symptomatic, aes(x=week,y=est,group=type,colour=type))+
+MRP_sd_symptomatic_plot <- ggplot(data=est_raw_symptomatic, aes(x=week,y=est,group=type,colour=type))+
   geom_point(aes(shape=type))+
-  geom_line(aes(linetype=type),alpha=0.4)+
-  geom_errorbar(aes(ymin=low, ymax=up,linetype=type), width=0.1,alpha=0.4)+
-  labs (title = "", x = "Week", y = "PCR Prevalence for symptomatic patients")+
-  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.4))+
-  scale_x_continuous(breaks=seq(from=19,to=30, by = 1),labels = c("May5 - May11",
+  geom_line(aes(linetype=type,colour=type),alpha=0.4)+
+  geom_errorbar(aes(ymin=est-sd, ymax=est+sd,linetype=type), width=0.1,alpha=0.4)+
+  labs (title = "", x = "Week", y = "PCR Prevalence")+
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.3))+
+  scale_x_continuous(breaks=seq(from=min(est_raw_symptomatic$week),to=max(est_raw_symptomatic$week), by = 1),labels = c("May5 - May11",
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
-                                                                "July21 - July27"))+
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Sep29 - Oct5"))+
     theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
 
-ggsave(MRP_CI_symptomatic_plot, file="plot/pcr_mrp_sym_ci.png")
+ggsave(MRP_sd_symptomatic_plot, file="plot/pcr_mrp_sym_sd.png")
+
+# MRP_CI_symptomatic_plot <- ggplot(data=est_raw_symptomatic, aes(x=week,y=est,group=type,colour=type))+
+#   geom_point(aes(shape=type))+
+#   geom_line(aes(linetype=type),alpha=0.4)+
+#   geom_errorbar(aes(ymin=low, ymax=up,linetype=type), width=0.1,alpha=0.4)+
+#   labs (title = "", x = "Week", y = "PCR Prevalence")+
+#   scale_y_continuous(expand = c(0, 0), limits = c(0, 0.4))+
+#   scale_x_continuous(breaks=seq(from=min(est_raw_symptomatic$week),to=max(est_raw_symptomatic$week), by = 1),labels = c("May5 - May11",
+#                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
+#                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Sep29 - Oct5"))+
+#     theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
+# 
+# ggsave(MRP_CI_symptomatic_plot, file="plot/pcr_mrp_sym_ci.png")
+
+
 grid.arrange(MRP_symptomatic_plot,
-             MRP_CI_symptomatic_plot, nrow = 1)
+             MRP_sd_symptomatic_plot, nrow = 1)
 ```
 
 ## Sensitivity Issue
@@ -1295,7 +1350,7 @@ J_spec=14, y_spec=c(0, 368, 30, 70, 1102, 300, 311, 500, 198, 99, 29, 146, 105, 
 #fit_IGG <- stan(file = "MRP_igg_updated.stan", data = IGG_data_stan,iter = 10000,cores = 8, chains=2) 
 #saveRDS(fit_IGG, "fit_igg0918b.rds")
 
-fit_IGG = readRDS("fit_igg0918b.rds")
+fit_IGG = readRDS("fit_igg1005_asymptomatic.rds")
 #
 #fit_nozip=readRDS("fit_nozip0812.rds")
 #fit_IGG = fit_IGG0
@@ -1304,12 +1359,28 @@ fit_IGG = readRDS("fit_igg0918b.rds")
 
 #plot(apply(rstan::extract(fit_nozip,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(fit_nozip,"p_avg_c", permuted = TRUE)[[1]],2,mean))
 
-IGG_est_raw = data.frame(cbind(rep(c("Raw","MRP-hospital","MRP-community"),each=length(unique(IGG_prevalence_by_week$igg_week_ind))),rep(IGG_prevalence_by_week$igg_week_ind,3),c(IGG_prevalence_by_week$prevalence,apply(rstan::extract(fit_IGG,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(fit_IGG,"p_avg_c", permuted = TRUE)[[1]],2,mean)),c(IGG_prevalence_by_week$prevalence,apply(rstan::extract(fit_IGG,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.025)),apply(rstan::extract(fit_IGG,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.025))),c(IGG_prevalence_by_week$prevalence,apply(rstan::extract(fit_IGG,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)),apply(rstan::extract(fit_IGG,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)))))
-names(IGG_est_raw)=c("type","week","est","low","up")
+# IGG_est_raw = data.frame(cbind(rep(c("Raw","MRP-hospital","MRP-community"),each=length(unique(IGG_prevalence_by_week$igg_week_ind))),rep(IGG_prevalence_by_week$igg_week_ind,3),c(IGG_prevalence_by_week$prevalence,apply(rstan::extract(fit_IGG,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(fit_IGG,"p_avg_c", permuted = TRUE)[[1]],2,mean)),c(IGG_prevalence_by_week$prevalence,apply(rstan::extract(fit_IGG,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.025)),apply(rstan::extract(fit_IGG,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.025))),c(IGG_prevalence_by_week$prevalence,apply(rstan::extract(fit_IGG,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)),apply(rstan::extract(fit_IGG,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)))))
+# names(IGG_est_raw)=c("type","week","est","low","up")
+# IGG_est_raw$week = as.numeric(as.character(IGG_est_raw$week))
+# IGG_est_raw$est = as.numeric(as.character(IGG_est_raw$est))
+# IGG_est_raw$low = as.numeric(as.character(IGG_est_raw$low))
+# IGG_est_raw$up = as.numeric(as.character(IGG_est_raw$up))
+
+IGG_est_raw = data.frame(cbind(
+  rep(c("Raw","MRP-hospital","MRP-community"),each=length(unique(IGG_prevalence_by_week$igg_week_ind))),
+  rep(IGG_prevalence_by_week$igg_week_ind,3),
+  c(IGG_prevalence_by_week$prevalence,
+    apply(rstan::extract(fit_IGG,"p_avg_h", permuted = TRUE)[[1]],2,mean),
+    apply(rstan::extract(fit_IGG,"p_avg_c", permuted = TRUE)[[1]],2,mean)),
+  c(rep(0,length(unique(IGG_prevalence_by_week$igg_week_ind))),apply(rstan::extract(fit_IGG,"p_avg_h", permuted = TRUE)[[1]],2,sd),
+    apply(rstan::extract(fit_IGG,"p_avg_c", permuted = TRUE)[[1]],2,sd))
+  ))
+
+names(IGG_est_raw)=c("type","week","est","sd")
 IGG_est_raw$week = as.numeric(as.character(IGG_est_raw$week))
 IGG_est_raw$est = as.numeric(as.character(IGG_est_raw$est))
-IGG_est_raw$low = as.numeric(as.character(IGG_est_raw$low))
-IGG_est_raw$up = as.numeric(as.character(IGG_est_raw$up))
+IGG_est_raw$sd = as.numeric(as.character(IGG_est_raw$sd))
+
 
 MRP_IGG_plot <- ggplot(data=IGG_est_raw, aes(x=week,y=est,group=type,colour=type))+
   geom_point(aes(shape=type))+
@@ -1322,20 +1393,33 @@ MRP_IGG_plot <- ggplot(data=IGG_est_raw, aes(x=week,y=est,group=type,colour=type
   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
 ggsave(MRP_IGG_plot, file="plot/igg_mrp_est.png")
 
-MRP_IGG_CI_plot <- ggplot(data=IGG_est_raw, aes(x=week,y=est,group=type,colour=type))+
+MRP_IGG_sd_plot <- ggplot(data=IGG_est_raw, aes(x=week,y=est,group=type,colour=type))+
   geom_point(aes(shape=type))+
-  geom_line(aes(linetype=type),alpha=0.4)+
-  geom_errorbar(aes(ymin=low, ymax=up,linetype=type), width=0.1,alpha=0.4)+
+  geom_line(aes(linetype=type,colour=type),alpha=0.4)+
+  geom_errorbar(aes(ymin=est-sd, ymax=est+sd,linetype=type), width=0.1,alpha=0.4)+
   labs (title = "", x = "Week", y = "IGG Prevalence")+
-  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.3 ))+
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.25 ))+
   scale_x_continuous(breaks=seq(from=min(IGG_est_raw$week),to=max(IGG_est_raw$week), by = 1),labels = c("Apr28 - May4","May5 - May11",
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5"))+
   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
 
-ggsave(MRP_IGG_CI_plot, file="plot/igg_mrp_ci.png")
+ggsave(MRP_IGG_sd_plot, file="plot/igg_mrp_sd.png")
+
+# MRP_IGG_CI_plot <- ggplot(data=IGG_est_raw, aes(x=week,y=est,group=type,colour=type))+
+#   geom_point(aes(shape=type))+
+#   geom_line(aes(linetype=type),alpha=0.4)+
+#   geom_errorbar(aes(ymin=low, ymax=up,linetype=type), width=0.1,alpha=0.4)+
+#   labs (title = "", x = "Week", y = "IGG Prevalence")+
+#   scale_y_continuous(expand = c(0, 0), limits = c(0, 0.3 ))+
+#   scale_x_continuous(breaks=seq(from=min(IGG_est_raw$week),to=max(IGG_est_raw$week), by = 1),labels = c("Apr28 - May4","May5 - May11",
+#                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
+#                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5"))+
+#   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
+# 
+# ggsave(MRP_IGG_CI_plot, file="plot/igg_mrp_ci.png")
 grid.arrange(MRP_IGG_plot,
-             MRP_IGG_CI_plot, nrow = 1)
+             MRP_IGG_sd_plot, nrow = 1)
 
 
 ###Repeat analysis for symptomatic patients' data
@@ -1355,48 +1439,139 @@ county = IGG_data_symptomatic$county_stan,
 J_spec=14, y_spec=c(0, 368, 30, 70, 1102, 300, 311, 500, 198, 99, 29, 146, 105, 50), n_spec=c(0, 371, 30, 70, 1102, 300, 311, 500, 200, 99, 31, 150, 108, 52), J_sens=4, y_sens=c(70, 78, 27, 25), n_sens=c(100, 85, 37, 35), logit_spec_prior_scale=0.2, logit_sens_prior_scale=0.2, intercept_prior_mean=0, intercept_prior_scale=2.5, coef_prior_scale=1,coef_prior_scale_time=5, J=2*3*5*2, N_pop=poststratification_table_nozip$N, N_acs = county.ps)
 
 #fit_IGG_symptomatic <- stan(file = "MRP_igg_updated.stan", data = IGG_data_stan_symptomatic,iter = 10000,chains=2) 
-#saveRDS(fit_IGG_symptomatic, "fit_igg_symptomatic0918b.rds")
+#saveRDS(fit_IGG_symptomatic, "fit_igg_symptomatic1008.rds")
 
-fit_IGG_symptomatic = readRDS("fit_igg_symptomatic0918b.rds")
+fit_IGG_symptomatic = readRDS("fit_igg_symptomatic1008.rds")
 
 
 # print(fit_IGG_symptomatic, pars=c("p_avg_h","p_avg_c","b", "a_age", "a_race", "spec", "sens","a_time","sigma_time","a_county","sigma_county","sigma_time"), digits=3)
 
 
-IGG_est_raw_symptomatic = data.frame(cbind(rep(c("Raw","MRP-hospital","MRP-community"),each=length(unique(IGG_prevalence_by_week_symptomatic$igg_week_ind))),rep(IGG_prevalence_by_week_symptomatic$igg_week_ind,3),c(IGG_prevalence_by_week_symptomatic$prevalence,apply(rstan::extract(fit_IGG_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(fit_IGG_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,mean)),c(IGG_prevalence_by_week_symptomatic$prevalence,apply(rstan::extract(fit_IGG_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.025)),apply(rstan::extract(fit_IGG_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.025))),c(IGG_prevalence_by_week_symptomatic$prevalence,apply(rstan::extract(fit_IGG_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)),apply(rstan::extract(fit_IGG_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)))))
-names(IGG_est_raw_symptomatic)=c("type","week","est","low","up")
+# IGG_est_raw_symptomatic = data.frame(cbind(rep(c("Raw","MRP-hospital","MRP-community"),each=length(unique(IGG_prevalence_by_week_symptomatic$igg_week_ind))),rep(IGG_prevalence_by_week_symptomatic$igg_week_ind,3),c(IGG_prevalence_by_week_symptomatic$prevalence,apply(rstan::extract(fit_IGG_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(fit_IGG_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,mean)),c(IGG_prevalence_by_week_symptomatic$prevalence,apply(rstan::extract(fit_IGG_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.025)),apply(rstan::extract(fit_IGG_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.025))),c(IGG_prevalence_by_week_symptomatic$prevalence,apply(rstan::extract(fit_IGG_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)),apply(rstan::extract(fit_IGG_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,quantile, probs=c(0.975)))))
+# names(IGG_est_raw_symptomatic)=c("type","week","est","low","up")
+# IGG_est_raw_symptomatic$week = as.numeric(as.character(IGG_est_raw_symptomatic$week))
+# IGG_est_raw_symptomatic$est = as.numeric(as.character(IGG_est_raw_symptomatic$est))
+# IGG_est_raw_symptomatic$low = as.numeric(as.character(IGG_est_raw_symptomatic$low))
+# IGG_est_raw_symptomatic$up = as.numeric(as.character(IGG_est_raw_symptomatic$up))
+
+
+IGG_est_raw_symptomatic = data.frame(cbind(rep(c("Raw","MRP-hospital","MRP-community"),each=length(unique(IGG_prevalence_by_week_symptomatic$igg_week_ind))),rep(IGG_prevalence_by_week_symptomatic$igg_week_ind,3),c(IGG_prevalence_by_week_symptomatic$prevalence,apply(rstan::extract(fit_IGG_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(fit_IGG_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,mean)),                                      c(rep(0,length(unique(IGG_prevalence_by_week_symptomatic$igg_week_ind))),apply(rstan::extract(fit_IGG_symptomatic,"p_avg_h", permuted = TRUE)[[1]],2,sd),apply(rstan::extract(fit_IGG_symptomatic,"p_avg_c", permuted = TRUE)[[1]],2,sd))))
+names(IGG_est_raw_symptomatic)=c("type","week","est","sd")
 IGG_est_raw_symptomatic$week = as.numeric(as.character(IGG_est_raw_symptomatic$week))
 IGG_est_raw_symptomatic$est = as.numeric(as.character(IGG_est_raw_symptomatic$est))
-IGG_est_raw_symptomatic$low = as.numeric(as.character(IGG_est_raw_symptomatic$low))
-IGG_est_raw_symptomatic$up = as.numeric(as.character(IGG_est_raw_symptomatic$up))
+IGG_est_raw_symptomatic$sd = as.numeric(as.character(IGG_est_raw_symptomatic$sd))
+
 
 MRP_IGG_symptomatic_plot <- ggplot(data=IGG_est_raw_symptomatic, aes(x=week,y=est,group=type,colour=type))+
   geom_point(aes(shape=type))+
   geom_line(aes(linetype=type))+
-  labs (title = "", x = "Week", y = "IGG Prevalence for symptomatic patients")+
+  labs (title = "", x = "Week", y = "IGG Prevalence")+
   scale_y_continuous(expand = c(0, 0), limits = c(0, 0.8 ))+
   scale_x_continuous(breaks=seq(from=min(IGG_est_raw_symptomatic$week),to=max(IGG_est_raw_symptomatic$week), by = 1),labels = c("Apr28 - May4","May5 - May11",
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
-                                                                "July21 - July27"))+
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12"))+
   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
 ggsave(MRP_IGG_symptomatic_plot, file="plot/igg_mrp_sym_est.png")
 
-MRP_IGG_CI_symptomatic_plot <- ggplot(data=IGG_est_raw_symptomatic, aes(x=week,y=est,group=type,colour=type))+
+MRP_IGG_sd_symptomatic_plot <- ggplot(data=IGG_est_raw_symptomatic, aes(x=week,y=est,group=type,colour=type))+
   geom_point(aes(shape=type))+
-  geom_line(aes(linetype=type),alpha=0.4)+
-  geom_errorbar(aes(ymin=low, ymax=up,linetype=type), width=0.1,alpha=0.4)+
-  labs (title = "", x = "Week", y = "IGG Prevalence for symptomatic patients")+
+  geom_line(aes(linetype=type,colour=type),alpha=0.4)+
+  geom_errorbar(aes(ymin=est-sd, ymax=est+sd,linetype=type), width=0.1,alpha=0.4)+
+  labs (title = "", x = "Week", y = "IGG Prevalence")+
   scale_y_continuous(expand = c(0, 0), limits = c(0, 1 ))+
   scale_x_continuous(breaks=seq(from=min(IGG_est_raw_symptomatic$week),to=max(IGG_est_raw_symptomatic$week), by = 1),labels = c("Apr28 - May4","May5 - May11",
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
-                                                                "July21 - July27"))+
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12"))+
   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
 
-ggsave(MRP_IGG_CI_symptomatic_plot, file="plot/igg_mrp_sym_ci.png")
+ggsave(MRP_IGG_sd_symptomatic_plot, file="plot/igg_mrp_sym_sd.png")
 
-grid.arrange(MRP_IGG_symptomatic_plot,
-             MRP_IGG_CI_symptomatic_plot, nrow = 1)
+# MRP_IGG_CI_symptomatic_plot <- ggplot(data=IGG_est_raw_symptomatic, aes(x=week,y=est,group=type,colour=type))+
+#   geom_point(aes(shape=type))+
+#   geom_line(aes(linetype=type),alpha=0.4)+
+#   geom_errorbar(aes(ymin=low, ymax=up,linetype=type), width=0.1,alpha=0.4)+
+#   labs (title = "", x = "Week", y = "IGG Prevalence")+
+#   scale_y_continuous(expand = c(0, 0), limits = c(0, 1 ))+
+#   scale_x_continuous(breaks=seq(from=min(IGG_est_raw_symptomatic$week),to=max(IGG_est_raw_symptomatic$week), by = 1),labels = c("Apr28 - May4","May5 - May11",
+#                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
+#                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12"))+
+#   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
+# 
+# ggsave(MRP_IGG_CI_symptomatic_plot, file="plot/igg_mrp_sym_ci.png")
+# 
+# grid.arrange(MRP_IGG_symptomatic_plot,
+#              MRP_IGG_CI_symptomatic_plot, nrow = 1)
 
+```
+
+Combine results
+
+```{r, echo=FALSE}
+state_data_by_week
+est_raw_1
+est_raw_symptomatic
+count_comparison
+
+week.inc = count_comparison$PCR_prevalence_by_week.pcr_week_ind.2.23.
+combine = data.frame(cbind(week.inc,                           count_comparison$ratio_approximated,
+                           state_data_by_week$prevalence[state_data_by_week$week_ind %in% week.inc],
+                           est_raw_1$est[est_raw_1$type=="MRP-hospital" & est_raw_1$week %in% week.inc],
+                           est_raw_1$est[est_raw_1$type=="MRP-community" & est_raw_1$week %in% week.inc],
+                    est_raw_symptomatic$est[est_raw_symptomatic$type=="MRP-hospital" & est_raw_symptomatic$week %in% week.inc],                           est_raw_symptomatic$est[est_raw_symptomatic$type=="MRP-community" & est_raw_symptomatic$week %in% week.inc]))
+
+names(combine) = c("week","ratio","state","Hospasym","Comasym","Hospsym","Comsym")
+combine = combine %>%
+  mutate(
+    Hos=(Hospasym * ratio + Hospsym)/(ratio + 1),
+    Com=(Comasym * ratio + Comsym)/(ratio + 1)
+    #Hos=(Hospasym * 4 + Hospsym)/(4 + 1),
+    #Com=(Comasym * 4 + Comsym)/(4 + 1)
+  )
+combine[22,]
+
+combine_v = data.frame(cbind(
+  rep(combine$week,3),
+  c(rep("state",length(combine$week)),rep("hosp",length(combine$week)),rep("com",length(combine$week))),
+  c(combine$state,combine$Hos,combine$Com)
+))
+
+combine_v_sym = data.frame(cbind(
+  rep(combine$week,3),
+  c(rep("state",length(combine$week)),rep("hosp-sym",length(combine$week)),rep("com-sym",length(combine$week))),
+  c(combine$state,combine$Hospsym,combine$Comsym)
+))
+
+names(combine_v) = c("week","type","est")
+combine_v$week = as.numeric(as.character(combine_v$week))
+combine_v$est = as.numeric(as.character(combine_v$est))
+
+names(combine_v_sym) = c("week","type","est")
+combine_v_sym$week = as.numeric(as.character(combine_v_sym$week))
+combine_v_sym$est = as.numeric(as.character(combine_v_sym$est))
+
+combine_plot = ggplot(data=combine_v, aes(x=week,y=est,group=type,colour=type))+
+  geom_point(aes(shape=type))+
+  geom_line(aes(linetype=type),alpha=0.4)+
+  labs (title = "", x = "Week", y = "PCR Prevalence")+
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.15))+
+  scale_x_continuous(breaks=seq(from=min(combine_v$week),to=max(combine_v$week), by = 1),labels = c("May5 - May11",
+                                                                "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5"))+
+  theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
+
+ggsave(combine_plot, file="plot/pcr_compare.png")
+
+combine_plot_sym = ggplot(data=combine_v_sym, aes(x=week,y=est,group=type,colour=type))+
+  geom_point(aes(shape=type))+
+  geom_line(aes(linetype=type),alpha=0.4)+
+  labs (title = "", x = "Week", y = "PCR Prevalence")+
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.25))+
+  scale_x_continuous(breaks=seq(from=min(combine_v$week),to=max(combine_v$week), by = 1),labels = c("May5 - May11",
+                                                                "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5"))+
+  theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
+      
+ggsave(combine_plot_sym, file="plot/pcr_compare_sym.png")             
 ```
 
 <!-- Here we sumamrize the MRP results based on asymptimatic patients as following:  -->
