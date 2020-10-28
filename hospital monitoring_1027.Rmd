@@ -143,7 +143,7 @@ ggplot(data =state_data_by_week, aes(x = week_ind,y = prevalence))+
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21","Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12","Oct13 - Oct19", "Oct20 - Oct26"))+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-ggsave(file="plot/dist1.png")
+ggsave(width = 5, height = 3, units = "in", device='png',file="plot/dist1.png")
 ```
 
 ## Data Import and Manipulation
@@ -503,7 +503,7 @@ poststratify_data %>%
 c(sum(all_sexage[,c(1,3,5,7,9)])/sum(all_sexage), sum(all_sexage[,1+c(1,3,5,7,9)])/sum(all_sexage))),
 
 #age
-cbind(c("Age0-17(%)","Age18-34(%)","Age35-64(%)","Age65-75(%)", "Age75+(%)"),
+cbind(c("Age0-17(%)","Age18-34(%)","Age35-64(%)","Age65-74(%)", "Age75+(%)"),
 patient_data %>% 
   group_by(age_stan) %>% 
   summarize(
@@ -587,7 +587,7 @@ c(sum(white)/sum(all_sexage), sum(black)/sum(all_sexage), sum(other)/sum(all_sex
 
 
 #county
-cbind(c("Lake(%)","Potter(%)"),
+cbind(c("Lake(%)","Porter(%)"),
 patient_data %>% 
   group_by(county_stan) %>% 
   summarize(
@@ -713,13 +713,13 @@ PCR_prevalence_by_week_plot <- ggplot(data =PCR_prevalence_by_week, aes(x = as.n
   geom_point() +
   geom_line()+
   labs(title = "Asymptomatic Patients", x = "Week", y = "PCR Prevalence")+
-  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.04))+
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.03))+
   scale_x_continuous(breaks=seq(from=PCR_prevalence_by_week$pcr_week_ind[1],to=max(PCR_prevalence_by_week$pcr_week_ind), by = 1),labels = c("Apr28 - May4","May5 - May11",
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12", "Oct13 - Oct19", "Oct20 - Oct26"))+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-ggsave(PCR_prevalence_by_week_plot, file="plot/pcr-raw.png")
+ggsave(PCR_prevalence_by_week_plot, width = 5, height = 3, units = "in", device='png', file="plot/pcr-raw.png")
 #Repeat analysis for IGG result
 
 #igg_prevalence_by_day <- patient_data %>% 
@@ -780,7 +780,7 @@ IGG_prevalence_by_week_plot <- ggplot(data =IGG_prevalence_by_week, aes(x = as.n
   theme_bw()+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 
-ggsave(IGG_prevalence_by_week_plot, file="plot/igg_raw.png")
+ggsave(IGG_prevalence_by_week_plot, width = 5, height = 3, units = "in", device='png',file="plot/igg_raw.png")
 
 #Correspondence between PCR and IGG test
 patient_data %>% 
@@ -839,7 +839,7 @@ PCR_prevalence_by_week_symptomatic_plot <- ggplot(data =PCR_prevalence_by_week_s
   theme_bw()+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 
-ggsave(PCR_prevalence_by_week_symptomatic_plot, file="plot/pcr-raw-sym.png")
+ggsave(PCR_prevalence_by_week_symptomatic_plot, width = 5, height = 3, units = "in", device='png',file="plot/pcr-raw-sym.png")
 #Repeat analysis for IGG result
 #igg_prevalence_by_day_symptomatic <- patient_data_symptomatic %>% 
 #  filter(!is.na(igg_day_ind)) %>% 
@@ -877,7 +877,8 @@ IGG_prevalence_by_week_symptomatic_plot <- ggplot(data =IGG_prevalence_by_week_s
   theme_bw()+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 
-ggsave(IGG_prevalence_by_week_symptomatic_plot, file="plot/igg-raw-sym.png")
+ggsave(IGG_prevalence_by_week_symptomatic_plot, width = 5, height = 3, units = "in", device='png',file="plot/igg-raw-sym.png")
+
 patient_data_symptomatic %>% 
   filter(!is.na(igg_week_ind)) %>% 
   filter(!is.na(pcr_week_ind)) %>% 
@@ -913,7 +914,7 @@ count_comparison_plot <- ggplot(data =count_comparison, aes(x = count_comparison
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12","Oct13 - Oct19", "Oct20 - Oct26"))+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),axis.text.y = element_text(size=9))
-ggsave(count_comparison_plot, file="plot/pcr_asym_sym_ct.png")
+ggsave(count_comparison_plot, width = 5, height = 3, units = "in", device='png',file="plot/pcr_asym_sym_ct.png")
 
 IGG_ratio_approximated <- IGG_prevalence_by_week$total_patient[1:26]/ IGG_prevalence_by_week_symptomatic$total_patient[1:26]
 IGG_count_comparison <- data.frame(IGG_prevalence_by_week$igg_week_ind[1:26], IGG_ratio_approximated)
@@ -932,7 +933,7 @@ IGG_count_comparison_plot <- ggplot(data =IGG_count_comparison, aes(x = IGG_coun
   theme_bw()+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),axis.text.y = element_text(size=9))
 
-ggsave(IGG_count_comparison_plot, file="plot/igg_asym_sym_ct.png")
+ggsave(IGG_count_comparison_plot, width = 5, height = 3, units = "in", device='png',file="plot/igg_asym_sym_ct.png")
 grid.arrange(count_comparison_plot,
              IGG_count_comparison_plot, nrow = 1)
 ```
@@ -1006,7 +1007,7 @@ sex_dist=ggplot()+
   theme_bw()+
     theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),axis.text.y = element_text(size=9))+
   theme(legend.position="bottom",legend.text = element_text(size=8))
-  ggsave(sex_dist, file="plot/sex_dist.png")
+  ggsave(sex_dist, width = 5, height = 3, units = "in", device='png',file="plot/sex_dist.png")
 ```
 
 ### Relative race pct over time
@@ -1037,7 +1038,7 @@ race_dist=ggplot()+
   theme_bw()+
     theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),axis.text.y = element_text(size=9))+
   theme(legend.position="bottom",legend.text = element_text(size=8))
-ggsave(race_dist, file="plot/race_dist.png")
+ggsave(race_dist, width = 5, height = 3, units = "in", device='png',file="plot/race_dist.png")
 ```
 
 ### Relative age pct over time
@@ -1067,9 +1068,9 @@ age_dist=ggplot()+
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12","Oct13 - Oct19", "Oct20 - Oct26"))+
     theme_bw()+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),axis.text.y = element_text(size=9))+
-  theme(legend.position="bottom",legend.text = element_text(size=7))
+  theme(legend.position="bottom",legend.text = element_text(size=4.5))
 
-ggsave(age_dist, file="plot/age_dist.png")
+ggsave(age_dist, width = 5, height = 3, units = "in", device='png',file="plot/age_dist.png")
 ```
 ## MRP
 
@@ -1154,7 +1155,7 @@ MRP_plot <- ggplot(data=est_raw_1, aes(x=week,y=est,group=type,colour=type))+
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12","Oct13 - Oct19", "Oct20 - Oct26"))+
   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
-ggsave(MRP_plot, file="plot/pcr_mrp_est.png")
+ggsave(MRP_plot, width = 5, height = 3, units = "in", device='png',file="plot/pcr_mrp_est.png")
 
 # MRP_CI_plot <- ggplot(data=est_raw_1, aes(x=week,y=est,group=type,colour=type))+
 #   geom_point(aes(shape=type))+
@@ -1166,7 +1167,7 @@ ggsave(MRP_plot, file="plot/pcr_mrp_est.png")
 #                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
 #                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5"))+
 #   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
-# ggsave(MRP_CI_plot, file="plot/pcr_mrp_ci.png")
+# ggsave(MRP_CI_plot, width = 5, height = 3, units = "in", device='png',file="plot/pcr_mrp_ci.png")
 
 
 MRP_sd_plot <- ggplot(data=est_raw_1, aes(x=week,y=est,group=type,colour=type))+
@@ -1179,7 +1180,7 @@ MRP_sd_plot <- ggplot(data=est_raw_1, aes(x=week,y=est,group=type,colour=type))+
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12","Oct13 - Oct19", "Oct20 - Oct26"))+
   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
-ggsave(MRP_sd_plot, file="plot/pcr_mrp_sd.png")
+ggsave(MRP_sd_plot, width = 5, height = 3, units = "in", device='png',file="plot/pcr_mrp_sd.png")
 
 #est_raw_1[c(22:23,45:46,68:69),]
 grid.arrange(MRP_plot,
@@ -1233,7 +1234,7 @@ MRP_symptomatic_plot <- ggplot(data=est_raw_symptomatic, aes(x=week,y=est,group=
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12","Oct13 - Oct19", "Oct20 - Oct26"))+
     theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
-ggsave(MRP_symptomatic_plot, file="plot/pcr_mrp_sym_est.png")
+ggsave(MRP_symptomatic_plot, width = 5, height = 3, units = "in", device='png',file="plot/pcr_mrp_sym_est.png")
 
 MRP_sd_symptomatic_plot <- ggplot(data=est_raw_symptomatic, aes(x=week,y=est,group=type,colour=type))+
   geom_point(aes(shape=type))+
@@ -1246,7 +1247,7 @@ MRP_sd_symptomatic_plot <- ggplot(data=est_raw_symptomatic, aes(x=week,y=est,gro
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12","Oct13 - Oct19", "Oct20 - Oct26"))+
     theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
 
-ggsave(MRP_sd_symptomatic_plot, file="plot/pcr_mrp_sym_sd.png")
+ggsave(MRP_sd_symptomatic_plot, width = 5, height = 3, units = "in", device='png',file="plot/pcr_mrp_sym_sd.png")
 
 # MRP_CI_symptomatic_plot <- ggplot(data=est_raw_symptomatic, aes(x=week,y=est,group=type,colour=type))+
 #   geom_point(aes(shape=type))+
@@ -1259,7 +1260,7 @@ ggsave(MRP_sd_symptomatic_plot, file="plot/pcr_mrp_sym_sd.png")
 #                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Sep29 - Oct5"))+
 #     theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
 # 
-# ggsave(MRP_CI_symptomatic_plot, file="plot/pcr_mrp_sym_ci.png")
+# ggsave(MRP_CI_symptomatic_plot, width = 5, height = 3, units = "in", device='png',file="plot/pcr_mrp_sym_ci.png")
 
 
 grid.arrange(MRP_symptomatic_plot,
@@ -1299,14 +1300,14 @@ sex_age=patient_data_Andrew$sex_age,
 J_spec=14, y_spec=c(0, 368, 30, 70, 1102, 300, 311, 500, 198, 99, 29, 146, 105, 50), n_spec=c(0, 371, 30, 70, 1102, 300, 311, 500, 200, 99, 31, 150, 108, 52), J_sens=4, y_sens=c(65, 78, 27, 25), n_sens=c(100, 85, 37, 35), logit_spec_prior_scale=0.2, logit_sens_prior_scale=0.2, intercept_prior_mean=0, intercept_prior_scale=2.5, coef_prior_scale=2.5,coef_prior_scale_time=5, J=2*3*5*2, N_pop=poststratification_table_nozip$N, N_acs = county.ps)
 
 
-fit_pcr_1021_sen55 <- stan(file = "MRP_pcr_Andrew.stan", data = pcr_data_stan_sen55,refresh=0, cores=8,iter = 10000,chains=2) 
-saveRDS(fit_pcr_1021_sen55, "fit_pcr_1021_sen55.rds")
-
-fit_pcr_1021_sen60 <- stan(file = "MRP_pcr_Andrew.stan", data = pcr_data_stan_sen60,refresh=0, cores=5,iter = 10000,chains=2) 
-saveRDS(fit_pcr_1021_sen60, "fit_pcr_1021_sen60.rds")
-
-fit_pcr_1021_sen65 <- stan(file = "MRP_pcr_Andrew.stan", data = pcr_data_stan_sen65,refresh=0, cores=5,iter = 10000,chains=2) 
-saveRDS(fit_pcr_1021_sen65, "fit_pcr_1021_sen65.rds")
+# fit_pcr_1021_sen55 <- stan(file = "MRP_pcr_Andrew.stan", data = pcr_data_stan_sen55,refresh=0, cores=8,iter = 10000,chains=2) 
+# saveRDS(fit_pcr_1021_sen55, "fit_pcr_1021_sen55.rds")
+# 
+# fit_pcr_1021_sen60 <- stan(file = "MRP_pcr_Andrew.stan", data = pcr_data_stan_sen60,refresh=0, cores=5,iter = 10000,chains=2) 
+# saveRDS(fit_pcr_1021_sen60, "fit_pcr_1021_sen60.rds")
+# 
+# fit_pcr_1021_sen65 <- stan(file = "MRP_pcr_Andrew.stan", data = pcr_data_stan_sen65,refresh=0, cores=5,iter = 10000,chains=2) 
+# saveRDS(fit_pcr_1021_sen65, "fit_pcr_1021_sen65.rds")
 ```
 ## IgG Data MRP
 
@@ -1391,7 +1392,7 @@ MRP_IGG_plot <- ggplot(data=IGG_est_raw, aes(x=week,y=est,group=type,colour=type
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12","Oct13 - Oct19", "Oct20 - Oct26"))+
   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
-ggsave(MRP_IGG_plot, file="plot/igg_mrp_est.png")
+ggsave(MRP_IGG_plot, width = 5, height = 3, units = "in", device='png',file="plot/igg_mrp_est.png")
 
 MRP_IGG_sd_plot <- ggplot(data=IGG_est_raw, aes(x=week,y=est,group=type,colour=type))+
   geom_point(aes(shape=type))+
@@ -1404,7 +1405,7 @@ MRP_IGG_sd_plot <- ggplot(data=IGG_est_raw, aes(x=week,y=est,group=type,colour=t
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12","Oct13 - Oct19", "Oct20 - Oct26"))+
   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
 
-ggsave(MRP_IGG_sd_plot, file="plot/igg_mrp_sd.png")
+ggsave(MRP_IGG_sd_plot, width = 5, height = 3, units = "in", device='png',file="plot/igg_mrp_sd.png")
 
 # MRP_IGG_CI_plot <- ggplot(data=IGG_est_raw, aes(x=week,y=est,group=type,colour=type))+
 #   geom_point(aes(shape=type))+
@@ -1417,7 +1418,7 @@ ggsave(MRP_IGG_sd_plot, file="plot/igg_mrp_sd.png")
 #                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5"))+
 #   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
 # 
-# ggsave(MRP_IGG_CI_plot, file="plot/igg_mrp_ci.png")
+# ggsave(MRP_IGG_CI_plot, width = 5, height = 3, units = "in", device='png',file="plot/igg_mrp_ci.png")
 grid.arrange(MRP_IGG_plot,
              MRP_IGG_sd_plot, nrow = 1)
 
@@ -1471,7 +1472,7 @@ MRP_IGG_symptomatic_plot <- ggplot(data=IGG_est_raw_symptomatic, aes(x=week,y=es
                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12", "Oct13 - Oct19", "Oct20 - Oct26"))+
   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
-ggsave(MRP_IGG_symptomatic_plot, file="plot/igg_mrp_sym_est.png")
+ggsave(MRP_IGG_symptomatic_plot, width = 5, height = 3, units = "in", device='png',file="plot/igg_mrp_sym_est.png")
 
 MRP_IGG_sd_symptomatic_plot <- ggplot(data=IGG_est_raw_symptomatic, aes(x=week,y=est,group=type,colour=type))+
   geom_point(aes(shape=type))+
@@ -1484,7 +1485,7 @@ MRP_IGG_sd_symptomatic_plot <- ggplot(data=IGG_est_raw_symptomatic, aes(x=week,y
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12","Oct13 - Oct19", "Oct20 - Oct26"))+
   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
 
-ggsave(MRP_IGG_sd_symptomatic_plot, file="plot/igg_mrp_sym_sd.png")
+ggsave(MRP_IGG_sd_symptomatic_plot, width = 5, height = 3, units = "in", device='png',file="plot/igg_mrp_sym_sd.png")
 
 # MRP_IGG_CI_symptomatic_plot <- ggplot(data=IGG_est_raw_symptomatic, aes(x=week,y=est,group=type,colour=type))+
 #   geom_point(aes(shape=type))+
@@ -1497,7 +1498,7 @@ ggsave(MRP_IGG_sd_symptomatic_plot, file="plot/igg_mrp_sym_sd.png")
 #                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12"))+
 #   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
 # 
-# ggsave(MRP_IGG_CI_symptomatic_plot, file="plot/igg_mrp_sym_ci.png")
+# ggsave(MRP_IGG_CI_symptomatic_plot, width = 5, height = 3, units = "in", device='png',file="plot/igg_mrp_sym_ci.png")
 # 
 # grid.arrange(MRP_IGG_symptomatic_plot,
 #              MRP_IGG_CI_symptomatic_plot, nrow = 1)
@@ -1507,10 +1508,10 @@ ggsave(MRP_IGG_sd_symptomatic_plot, file="plot/igg_mrp_sym_sd.png")
 Combine results
 
 ```{r, echo=FALSE}
-state_data_by_week
-est_raw_1
-est_raw_symptomatic
-count_comparison
+# state_data_by_week
+# est_raw_1
+# est_raw_symptomatic
+# count_comparison
 
 week.inc = count_comparison$PCR_prevalence_by_week.pcr_week_ind.2.26.
 combine = data.frame(cbind(week.inc,                           count_comparison$ratio_approximated,
@@ -1559,7 +1560,7 @@ combine_plot = ggplot(data=combine_v, aes(x=week,y=est,group=type,colour=type))+
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12","Oct13 - Oct19", "Oct20 - Oct26"))+
   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
 
-ggsave(combine_plot, file="plot/pcr_compare.png")
+ggsave(combine_plot, width = 5, height = 3, units = "in", device='png',file="plot/pcr_compare.png")
 
 combine_plot_sym = ggplot(data=combine_v_sym, aes(x=week,y=est,group=type,colour=type))+
   geom_point(aes(shape=type))+
@@ -1571,20 +1572,20 @@ combine_plot_sym = ggplot(data=combine_v_sym, aes(x=week,y=est,group=type,colour
                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12","Oct13 - Oct19", "Oct20 - Oct26"))+
   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
       
-ggsave(combine_plot_sym, file="plot/pcr_compare_sym.png")             
+ggsave(combine_plot_sym, width = 5, height = 3, units = "in", device='png',file="plot/pcr_compare_sym.png")             
 ```
 
 
 
 ```{r}
-fit_pcr_1027_Andrew <- stan(file = "MRP_pcr_Andrew.stan", data = pcr_data_stan_Andrew,refresh=0, cores=7,iter = 10000,chains=2) 
-saveRDS(fit_pcr_1027_Andrew, "fit_pcr_1027_Andrew.rds")
-fit_pcr_symptomatic <- stan(file = 'MRP_pcr_Andrew.stan', data = pcr_data_stan_symptomatic, refresh=0, cores=7,iter = 10000, chains = 2)
-saveRDS(fit_pcr_symptomatic, "fit_pcr_symptomatic1027.rds")
-fit_IGG <- stan(file = "MRP_igg_updated.stan", data = IGG_data_stan,iter = 10000,cores = 7, chains=2) 
-saveRDS(fit_IGG, "fit_igg1027.rds")
-fit_IGG_symptomatic <- stan(file = "MRP_igg_updated.stan", data = IGG_data_stan_symptomatic,iter = 10000,cores = 7, chains=2) 
-saveRDS(fit_IGG_symptomatic, "fit_igg_symptomatic1027.rds")
+# fit_pcr_1027_Andrew <- stan(file = "MRP_pcr_Andrew.stan", data = pcr_data_stan_Andrew,refresh=0, cores=7,iter = 10000,chains=2) 
+# saveRDS(fit_pcr_1027_Andrew, "fit_pcr_1027_Andrew.rds")
+# fit_pcr_symptomatic <- stan(file = 'MRP_pcr_Andrew.stan', data = pcr_data_stan_symptomatic, refresh=0, cores=7,iter = 10000, chains = 2)
+# saveRDS(fit_pcr_symptomatic, "fit_pcr_symptomatic1027.rds")
+# fit_IGG <- stan(file = "MRP_igg_updated.stan", data = IGG_data_stan,iter = 10000,cores = 7, chains=2) 
+# saveRDS(fit_IGG, "fit_igg1027.rds")
+# fit_IGG_symptomatic <- stan(file = "MRP_igg_updated.stan", data = IGG_data_stan_symptomatic,iter = 10000,cores = 7, chains=2) 
+# saveRDS(fit_IGG_symptomatic, "fit_igg_symptomatic1027.rds")
 ```
 
 <!-- Here we sumamrize the MRP results based on asymptimatic patients as following:  -->
