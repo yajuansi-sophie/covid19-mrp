@@ -1127,7 +1127,7 @@ J_spec=14, y_spec=c(0, 368, 30, 70, 1102, 300, 311, 500, 198, 99, 29, 146, 105, 
 
 #fit_pcr_918_Yajuan=readRDS("fit_pcr_1005_Yajuan.rds")
 #fit_pcr_918_Andrew=readRDS("fit_pcr_1005_Andrew.rds")
-
+mrp_pcr_fit=fit_pcr_1028_sen55
 mrp_pcr_fit = readRDS("fit_pcr_1027_Andrew.rds")
 #mrp_pcr_fit=readRDS("fit_pcr_918_sen55.rds")
 #mrp_pcr_fit=readRDS("fit_pcr_918_sen60.rds")
@@ -1273,22 +1273,19 @@ Try different sensitivity, before we choose site 1 with sensitivity 70% and now 
 
 ```{r}
 #Sensitivity 55%
-pcr_data_stan_sen55 <- list(N=dim(patient_data_Andrew)[1], y=patient_data_Andrew$y_response,
+pcr_data_stan_sen70 <- list(N=dim(patient_data_Andrew)[1], y=patient_data_Andrew$y_response,
                    J_time=length(unique(patient_data_Andrew$pcr_week_ind)),
                    male=patient_data_Andrew$sex_stan, race=as.numeric(patient_data_Andrew$race_stan), age=as.numeric(patient_data_Andrew$age_stan), 
 week=patient_data_Andrew$pcr_week_ind-17,
 county = patient_data_Andrew$county_stan,
 sex_age=patient_data_Andrew$sex_age,
-J_spec=14, y_spec=c(0, 368, 30, 70, 1102, 300, 311, 500, 198, 99, 29, 146, 105, 50), n_spec=c(0, 371, 30, 70, 1102, 300, 311, 500, 200, 99, 31, 150, 108, 52), J_sens=4, y_sens=c(55, 78, 27, 25), n_sens=c(100, 85, 37, 35), logit_spec_prior_scale=0.2, logit_sens_prior_scale=0.2, intercept_prior_mean=0, intercept_prior_scale=2.5, coef_prior_scale=2.5,coef_prior_scale_time=5, J=2*3*5*2, N_pop=poststratification_table_nozip$N, N_acs = county.ps)
-
-#Sensitivity 60%
-pcr_data_stan_sen60 <- list(N=dim(patient_data_Andrew)[1], y=patient_data_Andrew$y_response,
-                   J_time=length(unique(patient_data_Andrew$pcr_week_ind)),
-                   male=patient_data_Andrew$sex_stan, race=as.numeric(patient_data_Andrew$race_stan), age=as.numeric(patient_data_Andrew$age_stan), 
-week=patient_data_Andrew$pcr_week_ind-17,
-county = patient_data_Andrew$county_stan,
-sex_age=patient_data_Andrew$sex_age,
-J_spec=14, y_spec=c(0, 368, 30, 70, 1102, 300, 311, 500, 198, 99, 29, 146, 105, 50), n_spec=c(0, 371, 30, 70, 1102, 300, 311, 500, 200, 99, 31, 150, 108, 52), J_sens=4, y_sens=c(60, 78, 27, 25), n_sens=c(100, 85, 37, 35), logit_spec_prior_scale=0.2, logit_sens_prior_scale=0.2, intercept_prior_mean=0, intercept_prior_scale=2.5, coef_prior_scale=2.5,coef_prior_scale_time=5, J=2*3*5*2, N_pop=poststratification_table_nozip$N, N_acs = county.ps)
+J_spec=2, 
+y_spec=c(100, 99), 
+n_spec=c(100,99), 
+J_sens=2, 
+y_sens=c(70, 140), 
+n_sens=c(100, 200), 
+logit_spec_prior_scale=0.2, logit_sens_prior_scale=0.2, intercept_prior_mean=0, intercept_prior_scale=2.5, coef_prior_scale=2.5,coef_prior_scale_time=5, J=2*3*5*2, N_pop=poststratification_table_nozip$N, N_acs = county.ps)
 
 #Sensitivity 65%
 pcr_data_stan_sen65 <- list(N=dim(patient_data_Andrew)[1], y=patient_data_Andrew$y_response,
@@ -1297,17 +1294,78 @@ pcr_data_stan_sen65 <- list(N=dim(patient_data_Andrew)[1], y=patient_data_Andrew
 week=patient_data_Andrew$pcr_week_ind-17,
 county = patient_data_Andrew$county_stan,
 sex_age=patient_data_Andrew$sex_age,
-J_spec=14, y_spec=c(0, 368, 30, 70, 1102, 300, 311, 500, 198, 99, 29, 146, 105, 50), n_spec=c(0, 371, 30, 70, 1102, 300, 311, 500, 200, 99, 31, 150, 108, 52), J_sens=4, y_sens=c(65, 78, 27, 25), n_sens=c(100, 85, 37, 35), logit_spec_prior_scale=0.2, logit_sens_prior_scale=0.2, intercept_prior_mean=0, intercept_prior_scale=2.5, coef_prior_scale=2.5,coef_prior_scale_time=5, J=2*3*5*2, N_pop=poststratification_table_nozip$N, N_acs = county.ps)
+J_spec=2, 
+y_spec=c(100, 99), 
+n_spec=c(100,99), 
+J_sens=2, 
+y_sens=c(65, 130), 
+n_sens=c(100, 200), logit_spec_prior_scale=0.2, logit_sens_prior_scale=0.2, intercept_prior_mean=0, intercept_prior_scale=2.5, coef_prior_scale=2.5,coef_prior_scale_time=5, J=2*3*5*2, N_pop=poststratification_table_nozip$N, N_acs = county.ps)
+
+#Sensitivity 65%
+# pcr_data_stan_sen65 <- list(N=dim(patient_data_Andrew)[1], y=patient_data_Andrew$y_response,
+#                    J_time=length(unique(patient_data_Andrew$pcr_week_ind)),
+#                    male=patient_data_Andrew$sex_stan, race=as.numeric(patient_data_Andrew$race_stan), age=as.numeric(patient_data_Andrew$age_stan), 
+# week=patient_data_Andrew$pcr_week_ind-17,
+# county = patient_data_Andrew$county_stan,
+# sex_age=patient_data_Andrew$sex_age,
+# J_spec=14, y_spec=c(0, 368, 30, 70, 1102, 300, 311, 500, 198, 99, 29, 146, 105, 50), n_spec=c(0, 371, 30, 70, 1102, 300, 311, 500, 200, 99, 31, 150, 108, 52), J_sens=4, y_sens=c(65, 78, 27, 25), n_sens=c(100, 85, 37, 35), logit_spec_prior_scale=0.2, logit_sens_prior_scale=0.2, intercept_prior_mean=0, intercept_prior_scale=2.5, coef_prior_scale=2.5,coef_prior_scale_time=5, J=2*3*5*2, N_pop=poststratification_table_nozip$N, N_acs = county.ps)
 
 
-# fit_pcr_1021_sen55 <- stan(file = "MRP_pcr_Andrew.stan", data = pcr_data_stan_sen55,refresh=0, cores=8,iter = 10000,chains=2) 
-# saveRDS(fit_pcr_1021_sen55, "fit_pcr_1021_sen55.rds")
+fit_pcr_1028_sen70 <- stan(file = "MRP_pcr_Andrew.stan", data = pcr_data_stan_sen70,iter = 10000,chains=2)
+
+saveRDS(fit_pcr_1028_sen70, "fit_pcr_1028_sen70.rds")
+
+fit_pcr_1028_sen65 <- stan(file = "MRP_pcr_Andrew.stan", data = pcr_data_stan_sen65,iter = 10000,chains=2)
+
+saveRDS(fit_pcr_1028_sen65, "fit_pcr_1028_sen65.rds")
 # 
 # fit_pcr_1021_sen60 <- stan(file = "MRP_pcr_Andrew.stan", data = pcr_data_stan_sen60,refresh=0, cores=5,iter = 10000,chains=2) 
 # saveRDS(fit_pcr_1021_sen60, "fit_pcr_1021_sen60.rds")
 # 
 # fit_pcr_1021_sen65 <- stan(file = "MRP_pcr_Andrew.stan", data = pcr_data_stan_sen65,refresh=0, cores=5,iter = 10000,chains=2) 
 # saveRDS(fit_pcr_1021_sen65, "fit_pcr_1021_sen65.rds")
+mrp_pcr_fit= fit_pcr_1028_sen65
+est_raw_1 = data.frame(cbind(rep(c("Raw","MRP-hospital","MRP-community"),each=length(unique(PCR_prevalence_by_week$pcr_week_ind))),rep(PCR_prevalence_by_week$pcr_week_ind,3),c(PCR_prevalence_by_week$prevalence,apply(rstan::extract(mrp_pcr_fit,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(mrp_pcr_fit,"p_avg_c", permuted = TRUE)[[1]],2,mean)),c(rep(0,length(unique(PCR_prevalence_by_week$pcr_week_ind))),apply(rstan::extract(mrp_pcr_fit,"p_avg_h", permuted = TRUE)[[1]],2,sd),apply(rstan::extract(mrp_pcr_fit,"p_avg_c", permuted = TRUE)[[1]],2,sd))))
+names(est_raw_1)=c("type","week","est","sd")
+est_raw_1$week = as.numeric(as.character(est_raw_1$week))
+est_raw_1$est = as.numeric(as.character(est_raw_1$est))
+est_raw_1$sd = as.numeric(as.character(est_raw_1$sd))
+
+MRP_plot <- ggplot(data=est_raw_1, aes(x=week,y=est,group=type,colour=type))+
+  geom_point(aes(shape=type))+
+  geom_line(aes(linetype=type))+
+  labs (title = "", x = "Week", y = "PCR Prevalence")+
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.05))+
+  scale_x_continuous(breaks=seq(from=min(est_raw_1$week),to=max(est_raw_1$week), by = 1),labels = c("Apr28 - May4","May5 - May11",
+                                                                "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12","Oct13 - Oct19", "Oct20 - Oct26"))+
+  theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
+ggsave(MRP_plot, width = 5, height = 3, units = "in", device='png',file="plot/pcr_mrp_est_sen65.png")
+
+# MRP_CI_plot <- ggplot(data=est_raw_1, aes(x=week,y=est,group=type,colour=type))+
+#   geom_point(aes(shape=type))+
+#   geom_line(aes(linetype=type,colour=type),alpha=0.4)+
+#   geom_errorbar(aes(ymin=low, ymax=up,linetype=type), width=0.1,alpha=0.4)+
+#   labs (title = "", x = "Week", y = "PCR Prevalence")+
+#   scale_y_continuous(expand = c(0, 0), limits = c(0, 0.1 ))+
+#   scale_x_continuous(breaks=seq(from=min(est_raw_1$week),to=max(est_raw_1$week), by = 1),labels = c("Apr28 - May4","May5 - May11",
+#                                                                 "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
+#                                                                 "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5"))+
+#   theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
+# ggsave(MRP_CI_plot, width = 5, height = 3, units = "in", device='png',file="plot/pcr_mrp_ci.png")
+
+
+MRP_sd_plot <- ggplot(data=est_raw_1, aes(x=week,y=est,group=type,colour=type))+
+  geom_point(aes(shape=type))+
+  geom_line(aes(linetype=type,colour=type),alpha=0.4)+
+  geom_errorbar(aes(ymin=est-sd, ymax=est+sd,linetype=type), width=0.1,alpha=0.4)+
+  labs (title = "", x = "Week", y = "PCR Prevalence")+
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.06 ))+
+  scale_x_continuous(breaks=seq(from=min(est_raw_1$week),to=max(est_raw_1$week), by = 1),labels = c("Apr28 - May4","May5 - May11",
+                                                                "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12","Oct13 - Oct19", "Oct20 - Oct26"))+
+  theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
+ggsave(MRP_sd_plot, width = 5, height = 3, units = "in", device='png',file="plot/pcr_mrp_sd_sen65.png")
 ```
 ## IgG Data MRP
 
@@ -1602,14 +1660,87 @@ ggsave(combine_plot_sym, width = 5, height = 3, units = "in", device='png',file=
 <!-- # print(fit_nozip_725_symptomatic, pars=c("p_avg","p_male", "p_female", "p_0_17", "p_18_39", "p_40_64", "p_65", "p_white", "p_black", "p_other", "b", "a_age", "a_eth", "spec", "sens"), digits=3) -->
 <!-- # ``` -->
 
+## 7-Day Moving Average
 
 ```{r}
-library(mgcv)
+#Distrcit 1 data
+state_data_by_day <- state_data %>% 
+ filter(district == '1',
+        day_ind != max(day_ind)) %>% #Remove latest day imcomplete data 
+  filter( #remove missing data at beginning 
+  day_ind >= 76
+ )#Let's start from Day 76
+average_prevalence <- rep(NA, length(state_data_by_day$day_ind))
+average_prevalence[1:6] <- state_data_by_day$positive_rate[1:6]
+for (i in 7:length(state_data_by_day$day_ind)){
+  average_prevalence[i] <- mean(state_data_by_day$positive_rate[(i-6):i])
+}
+state_data_by_day <- cbind(state_data_by_day, average_prevalence)
+
+ggplot(data =state_data_by_day, aes(x = day_ind,y = average_prevalence))+
+  geom_point() +
+  geom_line()+
+  labs(title = "COVID-19 prevalence in District 1, Indiana", x = "Days", y = "7-Day Averag Prevalence")+
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.4))+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+#Asymptomatic data
+PCR_prevalence_by_day <- patient_data %>% 
+  filter(!is.na(pcr_day_ind)) %>% 
+  group_by(pcr_day_ind) %>% 
+  summarize(
+    prevalence = sum(order_results == "Positive")/n(),
+    total_patient = n()
+  ) 
+average_prevalence_asym <- rep(NA, length(PCR_prevalence_by_day$pcr_day_ind))
+average_prevalence_asym[1:6] <- PCR_prevalence_by_day$prevalence[1:6]
+for (i in 7:length(PCR_prevalence_by_day$pcr_day_ind)){
+  average_prevalence_asym[i] <- mean(PCR_prevalence_by_day$prevalence[(i-6):i])
+}
+PCR_prevalence_by_day <- cbind(PCR_prevalence_by_day, average_prevalence_asym)
+ggplot(data =PCR_prevalence_by_day, aes(x = pcr_day_ind,y = average_prevalence_asym))+
+  geom_point() +
+  geom_line()+
+  labs(title = "Asymptomatic Patients", x = "Days", y = "7-Day Averag Prevalence")+
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.05))+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+#Symptomatic data
+PCR_prevalence_by_day_symptomatic <- patient_data_symptomatic %>% 
+  filter(!is.na(pcr_day_ind)) %>% 
+  group_by(pcr_day_ind) %>% 
+  summarize(
+    prevalence = sum(order_results == "Positive")/n(),
+    total_patient = n()
+  ) 
+average_prevalence_sym <- rep(NA, length(PCR_prevalence_by_day_symptomatic$pcr_day_ind))
+average_prevalence_sym[1:6] <- PCR_prevalence_by_day_symptomatic$prevalence[1:6]
+for (i in 7:length(PCR_prevalence_by_day_symptomatic$pcr_day_ind)){
+  average_prevalence_sym[i] <- mean(PCR_prevalence_by_day_symptomatic$prevalence[(i-6):i])
+}
+PCR_prevalence_by_day_symptomatic <- cbind(PCR_prevalence_by_day_symptomatic, average_prevalence_sym)
+ggplot(data =PCR_prevalence_by_day_symptomatic, aes(x = pcr_day_ind,y = average_prevalence_sym))+
+  geom_point() +
+  geom_line()+
+  labs(title = "Symptomatic Patients", x = "Days", y = "7-Day Averag Prevalence")+
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.4))+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+```
+
+```{r}
+#library(mgcv)
 library(splines)
 PCR_prevalence_by_week_spline <- PCR_prevalence_by_week %>% 
   mutate(
     pcr_week_ind = as.numeric(pcr_week_ind)
   )
+
+
+
+
 m1 <- gam(prevalence ~ s(pcr_week_ind, fx = TRUE, bs = "cr"), data = PCR_prevalence_by_week_spline, method = "REML")
 summary(m1)
 plot(m1, residuals = TRUE)
