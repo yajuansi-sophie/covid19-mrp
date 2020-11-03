@@ -1927,6 +1927,34 @@ saveRDS(fit_pcr_spline, file="fit_pcr_spline_pred.RDS")
 #a = rstan::extract(fit_pcr_spline,"a", permuted = TRUE)[[1]]
 mrp_pcr_fit= fit_pcr_spline
 
+week_pred = c(PCR_prevalence_by_week_spline$pcr_week_ind,max(PCR_prevalence_by_week_spline$pcr_week_ind)+1:4)
+spline_pred=data.frame(cbind(rep(c("MRP-hospital","MRP-community"), each=length(week_pred)),
+  rep(week_pred,2),
+  c(apply(rstan::extract(mrp_pcr_fit,"p_avg_h_pred", permuted = TRUE)[[1]],2,mean),
+  apply(rstan::extract(mrp_pcr_fit,"p_avg_c_pred", permuted = TRUE)[[1]],2,mean)),
+  c(apply(rstan::extract(mrp_pcr_fit,"p_avg_h_pred", permuted = TRUE)[[1]],2,quantile,probs=0.25),
+  apply(rstan::extract(mrp_pcr_fit,"p_avg_c_pred", permuted = TRUE)[[1]],2,quantile,probs=0.25)),
+  c(apply(rstan::extract(mrp_pcr_fit,"p_avg_h_pred", permuted = TRUE)[[1]],2,quantile,probs=0.75),
+  apply(rstan::extract(mrp_pcr_fit,"p_avg_c_pred", permuted = TRUE)[[1]],2,quantile,probs=0.75))))
+
+names(spline_pred)=c("type","week","est","low","up")
+spline_pred$week = as.numeric(as.character(spline_pred$week))
+spline_pred$est = as.numeric(as.character(spline_pred$est))
+spline_pred$low = as.numeric(as.character(spline_pred$low))
+spline_pred$up = as.numeric(as.character(spline_pred$up))
+ggplot(data=spline_pred, aes(x=week,y=est,group=type,colour=type))+
+  geom_point(aes(shape=type))+
+  geom_line(aes(linetype=type))+
+  geom_errorbar(aes(ymin=low, ymax=up,linetype=type), width=0.1,alpha=0.4)+
+  labs (title = "", x = "Week", y = "PCR Prevalence")+
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.05))+
+  scale_x_continuous(breaks=seq(from=min(spline_pred$week),to=max(spline_pred$week), by = 1),labels = c("Apr28 - May4","May5 - May11",
+                                                                "May12 - May18","May19 - May25","May26 - Jun1","Jun2 - Jun8","Jun9 - Jun15","Jun16 - Jun22","Jun23 - Jun29","Jun30 - July6","July7 - July13","July14 - July20",
+                                                                "July21 - July27","July28 - Aug3","Aug4 - Aug10","Aug11 - Aug17","Aug18 - Aug24","Aug25 - Aug31","Sep1 - Sep7","Sep8 - Sep14","Sep15 - Sep21", "Sep22 - Sep28", "Sep29 - Oct5", "Oct6 - Oct12","Oct13 - Oct19", "Oct20 - Oct26", "Oct27 - Nov1","Nov2 - Nov8","Nov9 - Nov15","Nov16 - Nov22"))+
+  theme_bw()+theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),legend.position="bottom",legend.title=element_blank(),legend.text = element_text(size=9))
+ggsave(width = 5, height = 3, units = "in", device='png',file="plot/spline_pred.png")
+
+
 est_raw_1 = data.frame(cbind(rep(c("Raw","MRP-hospital","MRP-community"),each=length(unique(PCR_prevalence_by_week$pcr_week_ind))),rep(PCR_prevalence_by_week$pcr_week_ind,3),c(PCR_prevalence_by_week$prevalence,apply(rstan::extract(mrp_pcr_fit,"p_avg_h", permuted = TRUE)[[1]],2,mean),apply(rstan::extract(mrp_pcr_fit,"p_avg_c", permuted = TRUE)[[1]],2,mean)),c(rep(0,length(unique(PCR_prevalence_by_week$pcr_week_ind))),apply(rstan::extract(mrp_pcr_fit,"p_avg_h", permuted = TRUE)[[1]],2,sd),apply(rstan::extract(mrp_pcr_fit,"p_avg_c", permuted = TRUE)[[1]],2,sd))))
 names(est_raw_1)=c("type","week","est","sd")
 est_raw_1$week = as.numeric(as.character(est_raw_1$week))
