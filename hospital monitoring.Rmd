@@ -1,0 +1,940 @@
+---
+title: "A design for hospital-based coronavirus tracking"
+author: "Len Covello, Andrew Gelman, Yajuan Si, and Siquan Wang"
+date: "12/21/2020"
+output:
+  word_document: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+bibliography: covid20.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE, results = FALSE, warning = FALSE, echo = FALSE}
+library("tidyverse")
+library("rstanarm")
+library("rstan")
+library("readxl")
+library("shinystan")
+library("knitr")
+library("data.table")
+library("gridExtra")
+```
+
+
+## Data Import and Manipulation
+
+```{r,results = FALSE, warning=FALSE,message=FALSE, echo = FALSE}
+age_sex = read_csv(file = "./ACSST5Y2018.S0101_data_with_overlays_2020-08-11T110209.csv")
+
+age_sex_white = read_csv(file = "./white.csv")
+age_sex_black = read_csv(file = "./black.csv")
+
+age_sex = age_sex[3:4, ]
+age_sex_white = age_sex_white[3:4, ]
+age_sex_black = age_sex_black[3:4, ]
+
+for (j in 3:dim(age_sex)[2]) {
+  age_sex[, j] = as.numeric(unlist(age_sex[, j]))
+}
+
+for (j in 3:dim(age_sex_white)[2]) {
+  age_sex_white[, j] = as.numeric(unlist(age_sex_white[, j]))
+  age_sex_black[, j] = as.numeric(unlist(age_sex_black[, j]))
+}
+white = cbind(
+  # 0-17 F W
+  apply(age_sex_white[, seq(37, 43, by = 2)], 1, sum),
+  # 0-17 M W
+  apply(age_sex_white[, seq(7, 13, by = 2)], 1, sum),
+  # 18-34 F W
+  apply(age_sex_white[, seq(45, 51, by = 2)], 1, sum),
+  # 18-34 M W
+  apply(age_sex_white[, seq(15, 21, by = 2)], 1, sum),
+  # 35-64 F W
+  apply(age_sex_white[, seq(53, 57, by = 2)], 1, sum),
+  # 35-64 M W
+  apply(age_sex_white[, seq(23, 27, by = 2)], 1, sum),
+  # 65-75 F W
+  apply(age_sex_white[, seq(59, 60, by = 2)], 1, sum),
+  # 65-75 M W
+  apply(age_sex_white[, seq(29, 30, by = 2)], 1, sum),
+  # 75 F W
+  apply(age_sex_white[, c(61, 63)], 1, sum),
+  # 75 M W
+  apply(age_sex_white[, seq(31, 33, by = 2)], 1, sum)
+)
+
+
+black = cbind(
+  # 0-17 F W
+  apply(age_sex_black[, seq(37, 43, by = 2)], 1, sum),
+  # 0-17 M W
+  apply(age_sex_black[, seq(7, 13, by = 2)], 1, sum),
+  # 18-34 F W
+  apply(age_sex_black[, seq(45, 51, by = 2)], 1, sum),
+  # 18-34 M W
+  apply(age_sex_black[, seq(15, 21, by = 2)], 1, sum),
+  # 35-64 F W
+  apply(age_sex_black[, seq(53, 57, by = 2)], 1, sum),
+  # 35-64 M W
+  apply(age_sex_black[, seq(23, 27, by = 2)], 1, sum),
+  # 65-75 F W
+  apply(age_sex_black[, seq(59, 60, by = 2)], 1, sum),
+  # 65-75 M W
+  apply(age_sex_black[, seq(29, 30, by = 2)], 1, sum),
+  # 75 F W
+  apply(age_sex_black[c(61, 63)], 1, sum),
+  # 75 M W
+  apply(age_sex_black[, seq(31, 33, by = 2)], 1, sum)
+)
+
+all_sexage = cbind(
+  # 0-17 F
+  apply(age_sex[, 263], 1, sum),
+  # 0-17 M
+  apply(age_sex[, 259], 1, sum),
+  # 18-34 F
+  apply(age_sex[, c(275, 83, 95)], 1, sum),
+  # 18-34 M
+  apply(age_sex[, c(271, 79, 91)], 1, sum),
+  # 35-64 F
+  apply(age_sex[, c(seq(107, 155, by = 12), 166)], 1, sum),
+  # 35-64 M
+  apply(age_sex[, c(seq(103, 151, by = 12), 162)], 1, sum),
+  # 65-75 F
+  apply(age_sex[, c(179, 191)], 1, sum),
+  # 65-75 M
+  apply(age_sex[, c(175, 187)], 1, sum),
+  # 75 F
+  apply(age_sex[, 370], 1, sum),
+  # 75 M
+  apply(age_sex[, 366], 1, sum)
+)
+
+
+other = all_sexage - white - black
+county.ps = c(
+  white[, 1], black[, 1], other[, 1], white[, 3], black[, 3], other[, 3],
+  white[, 5], black[, 5], other[, 5], white[, 7], black[, 7], other[, 7],
+  white[, 9], black[, 9], other[, 9],
+  white[, 2], black[, 2], other[, 2], white[, 4], black[, 4], other[, 4],
+  white[, 6], black[, 6], other[, 6], white[, 8], black[, 8], other[, 8],
+  white[, 10], black[, 10], other[, 10]
+)
+
+patient_data = read_csv(file = "./testdata.csv", na = c("", "#NUM!"))
+patient_data = janitor::clean_names(patient_data)
+
+patient_data = patient_data %>%
+  mutate(
+    pcr_week_ind = week(strptime(result_date_time, "%m/%d/%Y %H:%M")),
+    igg_week_ind = week(strptime(igg_result_observed_time, "%m/%d/%Y %H:%M")),
+    pcr_day_ind = yday(strptime(result_date_time, "%m/%d/%Y %H:%M")),
+    igg_day_ind = yday(strptime(igg_result_observed_time, "%m/%d/%Y %H:%M"))
+  ) %>%
+  filter(pcr_week_ind <= 48)
+
+patient_data_symptomatic = read_csv(file = "./testdata.csv", na = c("", "#NUM!"))
+patient_data_symptomatic = janitor::clean_names(patient_data_symptomatic)
+
+patient_data_symptomatic = patient_data_symptomatic %>%
+  mutate(
+    pcr_week_ind = week(strptime(result_date_time, "%m/%d/%Y %H:%M")),
+    igg_week_ind = week(strptime(igg_result_observed_time, "%m/%d/%Y %H:%M")),
+    pcr_day_ind = yday(strptime(result_date_time, "%m/%d/%Y %H:%M")),
+    igg_day_ind = yday(strptime(igg_result_observed_time, "%m/%d/%Y %H:%M"))
+  ) %>%
+  filter(pcr_week_ind <= 48)
+
+```
+
+We should be careful regarding missing data. Also the data quality might be a concern. There might be some duplicated samples.
+
+```{r, echo = FALSE,, results = FALSE, message=FALSE}
+dim(patient_data)
+patient_data = filter(patient_data, is.na(patient_data$age) != 1 & is.na(patient_data$sex) != 1 & is.na(patient_data$race) != 1 & is.na(patient_data$order_results) != 1 & patient_data$sex != "Unknown" & patient_data$race != "Unknown" & patient_data$age != "Unknown")
+
+patient_data = filter(patient_data, pcr_day_ind > 121)
+
+dim(patient_data)
+
+patient_data = patient_data[!duplicated(patient_data$masked_identifier), ]
+dim(patient_data)
+
+# Remove missing observations from symptotic patients data
+dim(patient_data_symptomatic)
+patient_data_symptomatic = filter(patient_data_symptomatic, is.na(patient_data_symptomatic$age) != 1 & is.na(patient_data_symptomatic$sex) != 1 & is.na(patient_data_symptomatic$race) != 1 & is.na(patient_data_symptomatic$order_results) != 1 & patient_data_symptomatic$sex != "Unknown" & patient_data_symptomatic$race != "Unknown" & patient_data_symptomatic$age != "Unknown")
+dim(patient_data_symptomatic)
+
+patient_data_symptomatic = patient_data_symptomatic[!duplicated(patient_data_symptomatic$masked_identifier), ]
+
+patient_data_symptomatic = patient_data_symptomatic %>% filter(!is.na(pcr_week_ind))
+dim(patient_data_symptomatic)
+```
+
+## Exploratory Data Analysis
+
+```{r, echo = FALSE, results=FALSE, message=FALSE}
+###### For Asymptomatic patients data
+
+# Recode the zip code data
+patient_data = mutate(patient_data,
+  county = ifelse(zip %in% c(46303, 46307:46308, 46311:46327, 46342, 46355, 46356, 46373, 46375:46377, 46394:46411, 60004:60827), 1,
+    ifelse(zip %in% c(46301:46302, 46304, 46341, 46347, 46360:46393), 2, NA)
+  )
+)
+
+patient_data = patient_data %>% filter(!is.na(county))
+
+zip_stan_725 = as.factor(patient_data$zip)
+map_725 = levels(zip_stan_725)
+levels(zip_stan_725) = 1:length(map_725)
+patient_data = mutate(patient_data,
+  zip = as.factor(zip),
+  sex_stan = ifelse(sex == "Female", -0.5, 0.5),
+  y_response = ifelse(order_results == "Negative", 0, 1), igg_result = ifelse(igg_order_results == "Negative", 0, ifelse(igg_order_results == "Positive", 1, NA)),
+  age_stan = factor(ifelse(age >= 0 & age < 18, 1,
+    ifelse(age >= 18 & age < 35, 2,
+      ifelse(age >= 35 & age < 65, 3,
+        ifelse(age >= 65 & age < 75, 4, 5)
+      )
+    )
+  )),
+  race_stan = ifelse(race == "White or Caucasian", 1,
+    ifelse(race == "Black or African American", 2, 3)
+  ),
+  zip_stan = zip_stan_725,
+  county_stan = county
+)
+
+
+###### For Symptomatic patients data
+
+patient_data_symptomatic = mutate(patient_data_symptomatic,
+  county = ifelse(zip %in% c(46303, 46307:46308, 46311:46327, 46342, 46355, 46356, 46373, 46375:46377, 46394:46411, 60004:60827), 1,
+    ifelse(zip %in% c(46301:46302, 46304, 46341, 46347, 46360:46393), 2, NA)
+  )
+)
+
+patient_data_symptomatic = patient_data_symptomatic %>% filter(!is.na(county))
+
+# Recode the zip code data
+zip_stan_725_symptomatic = as.factor(patient_data_symptomatic$zip)
+map_725_symptomatic = levels(zip_stan_725_symptomatic)
+levels(zip_stan_725_symptomatic) = 1:length(map_725_symptomatic)
+patient_data_symptomatic = mutate(patient_data_symptomatic,
+  zip = as.factor(zip),
+  sex_stan = ifelse(sex == "Female", -0.5, 0.5),
+  y_response = ifelse(order_results == "Negative", 0, 1), igg_result = ifelse(igg_order_results == "Negative", 0, ifelse(igg_order_results == "Positive", 1, NA)),
+  age_stan = factor(ifelse(age >= 0 & age < 18, 1,
+    ifelse(age >= 18 & age < 35, 2,
+      ifelse(age >= 35 & age < 65, 3,
+        ifelse(age >= 65 & age < 75, 4, 5)
+      )
+    )
+  )),
+  race_stan = ifelse(race == "White or Caucasian", 1,
+    ifelse(race == "Black or African American", 2, 3)
+  ),
+  zip_stan = zip_stan_725_symptomatic,
+  county_stan = county
+)
+```
+
+```{r,echo = FALSE, warning=FALSE,results=FALSE,message=FALSE}
+# Read and clean the data
+poststratify_data = read_excel("./Data Stratification_2020 05 27.xlsx",
+  sheet = "Data dump_LakePorterCook3"
+) %>%
+  slice(2:(n() - 1)) # Drop the first and last row
+poststratify_data = janitor::clean_names(poststratify_data)
+poststratify_data = poststratify_data %>%
+  separate(zip_city_state_county, into = c("zip", "city"), sep = " ") %>%
+  select(-city)
+poststratify_data = poststratify_data %>%
+  mutate(
+    sex_stan = ifelse(sex == "F", -0.5, 0.5),
+    race_stan = ifelse(race_description == "White", 1,
+      ifelse(race_description == "Black African American", 2, 3)
+    ),
+    age_stan = ifelse(market_share_binned_age == "0-17 yrs", 1,
+      ifelse(market_share_binned_age == "18-24 yrs" |
+        market_share_binned_age == "25-29 yrs" |
+        market_share_binned_age == "30-34 yrs", 2,
+      ifelse(market_share_binned_age == "35-39 yrs" | market_share_binned_age == "40-44 yrs" |
+        market_share_binned_age == "45-49 yrs" |
+        market_share_binned_age == "50-54 yrs" |
+        market_share_binned_age == "55-59 yrs" |
+        market_share_binned_age == "60-64 yrs", 3,
+      ifelse(market_share_binned_age == "65-69 yrs" | market_share_binned_age == "70-74 yrs", 4, 5)
+      )
+      )
+    ),
+    county_stan = ifelse(county == 93 | county == 45, 1, 2)
+  )
+
+# Change those new created variables into factors
+poststratify_data = poststratify_data %>%
+  mutate(
+    sex_stan = as.factor(sex_stan),
+    race_stan = as.factor(race_stan),
+    age_stan = as.factor(age_stan),
+    zip = as.factor(zip),
+    county_stan = as.factor(county_stan),
+    grand_total = as.numeric(grand_total)
+  )
+
+# Still need to relabel the zip code
+zip_stan_post = poststratify_data$zip
+map_post = levels(zip_stan_post)
+levels(zip_stan_post) = 1:length(map_post)
+poststratify_data = poststratify_data %>%
+  mutate(
+    zip_stan = zip_stan_post
+  )
+
+```
+
+
+```{r, echo = FALSE, warning=FALSE,results = FALSE, message=FALSE}
+# Construct poststratification table without zip code
+
+poststratification_table_nozip = poststratify_data %>%
+  group_by(sex_stan, age_stan, race_stan, county_stan) %>%
+  summarize(
+    N = sum(grand_total)
+  )
+dim(poststratification_table_nozip)
+```
+
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+# sex age race county
+table1 = data.frame(rbind(
+  c(
+    "Size", dim(patient_data)[1], dim(patient_data_symptomatic)[1],
+    sum(poststratify_data$grand_total), sum(all_sexage)
+  ),
+  c(
+    "Incidence(%)",
+    patient_data %>%
+      group_by(order_results) %>%
+      summarize(
+        n = n(),
+        ratio = n / dim(patient_data)[1]
+      ) %>%
+      slice(2) %>%
+      pull(ratio),
+
+    patient_data_symptomatic %>%
+      group_by(order_results) %>%
+      summarize(
+        n = n(),
+        ratio = n / dim(patient_data_symptomatic)[1]
+      ) %>%
+      slice(2) %>%
+      pull(ratio),
+    NA, NA
+  ),
+
+  cbind(
+    # sex
+    c("Female(%)", "Male(%)"),
+    patient_data %>%
+      group_by(sex_stan) %>%
+      summarize(
+        n = n(),
+        pct = n / dim(patient_data)[1]
+      ) %>% pull(pct),
+
+    patient_data_symptomatic %>%
+      group_by(sex_stan) %>%
+      summarize(
+        n = n(),
+        pct = n / dim(patient_data_symptomatic)[1]
+      ) %>% pull(pct),
+
+    poststratify_data %>%
+      group_by(sex_stan) %>%
+      summarize(
+        n = sum(grand_total),
+        pct = n / sum(poststratify_data$grand_total)
+      ) %>% pull(pct),
+
+    c(sum(all_sexage[, c(1, 3, 5, 7, 9)]) / sum(all_sexage), sum(all_sexage[, 1 + c(1, 3, 5, 7, 9)]) / sum(all_sexage))
+  ),
+
+  # age
+  cbind(
+    c("Age0-17(%)", "Age18-34(%)", "Age35-64(%)", "Age65-74(%)", "Age75+(%)"),
+    patient_data %>%
+      group_by(age_stan) %>%
+      summarize(
+        n = n(),
+        pct = n / dim(patient_data)[1]
+      ) %>% pull(pct),
+
+    patient_data_symptomatic %>%
+      group_by(age_stan) %>%
+      summarize(
+        n = n(),
+        pct = n / dim(patient_data_symptomatic)[1]
+      ) %>% pull(pct),
+
+    poststratify_data %>%
+      group_by(age_stan) %>%
+      summarize(
+        n = sum(grand_total),
+        pct = n / sum(poststratify_data$grand_total)
+      ) %>% pull(pct),
+
+    c(sum(all_sexage[, 1:2]) / sum(all_sexage), sum(all_sexage[, 2 + 1:2]) / sum(all_sexage), sum(all_sexage[, 4 + 1:2]) / sum(all_sexage), sum(all_sexage[, 6 + 1:2]) / sum(all_sexage), sum(all_sexage[, 8 + 1:2]) / sum(all_sexage))
+  ),
+
+  # race
+  cbind(
+    c("White(%)", "Black(%)", "Other(%)"),
+    patient_data %>%
+      group_by(race_stan) %>%
+      summarize(
+        n = n(),
+        pct = n / dim(patient_data)[1]
+      ) %>% pull(pct),
+
+    patient_data_symptomatic %>%
+      group_by(race_stan) %>%
+      summarize(
+        n = n(),
+        pct = n / dim(patient_data_symptomatic)[1]
+      ) %>% pull(pct),
+
+    poststratify_data %>%
+      group_by(race_stan) %>%
+      summarize(
+        n = sum(grand_total),
+        pct = n / sum(poststratify_data$grand_total)
+      ) %>% pull(pct),
+
+    c(sum(white) / sum(all_sexage), sum(black) / sum(all_sexage), sum(other) / sum(all_sexage))
+  ),
+
+  # county
+  cbind(
+    c("Lake(%)", "Porter(%)"),
+    patient_data %>%
+      group_by(county_stan) %>%
+      summarize(
+        n = n(),
+        pct = n / dim(patient_data)[1]
+      ) %>% pull(pct),
+
+    patient_data_symptomatic %>%
+      group_by(county_stan) %>%
+      summarize(
+        n = n(),
+        pct = n / dim(patient_data_symptomatic)[1]
+      ) %>% pull(pct),
+
+
+    poststratify_data %>%
+      group_by(county_stan) %>%
+      summarize(
+        n = sum(grand_total),
+        pct = n / sum(poststratify_data$grand_total)
+      ) %>% pull(pct),
+
+    c(sum(all_sexage[1, ]) / sum(all_sexage), sum(all_sexage[2, ]) / sum(all_sexage))
+  )
+))
+names(table1) = c(
+  "", "Asymptomatic PCR", "Symptomatic PCR",
+  "Hospital", "Community"
+)
+for (j in 2:dim(table1)[2]) {
+  table1[1, j] = as.numeric(as.character(table1[1, j]))
+  table1[-1, j] = round(as.numeric(as.character(table1[-1, j])) * 100, 1)
+}
+for (i in 2:14) {
+  for (j in 2:dim(table1)[2]) {
+    B = as.numeric(as.character(table1[i, j]))
+    table1[i, j] = ifelse(B < 10 | B > 90, round(B, digits = 1), round(B, digits = 0))
+  }
+}
+kable(table1, caption = "Summary of test results and sociodemographics", digits = 1)
+```
+
+
+## Time Trend, PCR Test and IGG Test
+
+```{r, echo = FALSE, message=FALSE}
+# For asymptomatic patients data
+
+# Calculate week level prevalence
+PCR_prevalence_by_week = patient_data %>%
+  filter(!is.na(pcr_week_ind)) %>%
+  group_by(pcr_week_ind) %>%
+  summarize(
+    prevalence = sum(order_results == "Positive") / n(),
+    total_patient = n()
+  )
+
+ggplot(data = PCR_prevalence_by_week, aes(x = as.numeric(pcr_week_ind), y = prevalence)) +
+  geom_point() +
+  geom_line() +
+  labs(title = "Asymptomatic Patients", x = "", y = "PCR Prevalence") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.05)) +
+  scale_x_continuous(breaks = seq(from = PCR_prevalence_by_week$pcr_week_ind[1], to = max(PCR_prevalence_by_week$pcr_week_ind) + 1, length = 8), labels = c("Apr", "May", "Jun", "July", "Aug", "Sep", "Oct", "Nov")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust = 1.2))
+ggsave(width = 5, height = 3, units = "in", device = "png", file = "plot/pcr-raw.png")
+```
+
+Then we presented the results for symptomatic patients.
+
+```{r, echo = FALSE,message=FALSE}
+# For symptomatic patients data
+
+PCR_prevalence_by_week_symptomatic = patient_data_symptomatic %>%
+  filter(!is.na(pcr_week_ind)) %>%
+  group_by(pcr_week_ind) %>%
+  summarize(
+    prevalence = sum(order_results == "Positive") / n(),
+    total_patient = n()
+  )
+
+ggplot(data = PCR_prevalence_by_week_symptomatic, aes(x = as.numeric(pcr_week_ind), y = prevalence)) +
+  geom_point() +
+  geom_line() +
+  labs(title = "Symptomatic Patients", x = "", y = "PCR Prevalence") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.45)) +
+  scale_x_continuous(breaks = seq(from = min(PCR_prevalence_by_week_symptomatic$pcr_week_ind), to = max(PCR_prevalence_by_week_symptomatic$pcr_week_ind) - 2, length = 7), labels = c("May", "Jun", "July", "Aug", "Sep", "Oct", "Nov")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust = -1))
+ggsave(width = 5, height = 3, units = "in", device = "png", file = "plot/pcr-raw-sym.png")
+```
+
+Finally we would like to examine the hypothesis that whether the ratio between asymptomatic and symptomatic patients would be relatively constant across time. 
+
+```{r, echo = FALSE,message=FALSE}
+ratio_approximated = PCR_prevalence_by_week$total_patient[-1] / PCR_prevalence_by_week_symptomatic$total_patient
+count_comparison = data.frame(PCR_prevalence_by_week$pcr_week_ind[-1], ratio_approximated)
+names(count_comparison) = c("week", "ratio")
+
+ggplot(data = count_comparison, aes(x = count_comparison[, 1], y = count_comparison[, 2])) +
+  geom_point() +
+  geom_line() +
+  labs(title = "", x = "", y = "PCR tests asym/sym") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 20)) +
+  scale_x_continuous(breaks = seq(from = min(count_comparison$week), to = max(count_comparison$week) - 2, length = 7), labels = c("May", "Jun", "July", "Aug", "Sep", "Oct", "Nov")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust = -1), axis.text.y = element_text(size = 9))
+ggsave(width = 5, height = 3, units = "in", device = "png", file = "plot/pcr_asym_sym_ct.png")
+```
+
+## Plot of demographics of sample changing over time
+
+We groupd our data by PCR test result date, again the start date for both asymptotic and symptotic patients are 5/2/2020.
+
+```{r, echo = FALSE,message=FALSE}
+relative_pct = patient_data %>%
+  filter(!is.na(pcr_week_ind)) %>%
+  mutate(pcr_week_ind = as.factor(pcr_week_ind)) %>%
+  group_by(pcr_week_ind) %>%
+  summarize(
+    pct_male = sum(sex == "Male") / n(),
+    pct_female = sum(sex == "Female") / n(),
+    pct_age0_17 = sum(age_stan == 1) / n(),
+    pct_age18_39 = sum(age_stan == 2) / n(),
+    pct_age40_64 = sum(age_stan == 3) / n(),
+    pct_age65_75 = sum(age_stan == 4) / n(),
+    pct_age75 = sum(age_stan == 5) / n(),
+    pct_white = sum(race_stan == 1) / n(),
+    pct_black = sum(race_stan == 2) / n(),
+    pct_other = sum(race_stan == 3) / n(),
+    total = n()
+  )
+
+
+relative_pct_symptotic = patient_data_symptomatic %>%
+  filter(!is.na(pcr_week_ind)) %>%
+  mutate(pcr_week_ind = as.factor(pcr_week_ind)) %>%
+  group_by(pcr_week_ind) %>%
+  summarize(
+    pct_male = sum(sex == "Male") / n(),
+    pct_female = sum(sex == "Female") / n(),
+    pct_age0_17 = sum(age_stan == 1) / n(),
+    pct_age18_39 = sum(age_stan == 2) / n(),
+    pct_age40_64 = sum(age_stan == 3) / n(),
+    pct_age65_75 = sum(age_stan == 4) / n(),
+    pct_age75 = sum(age_stan == 5) / n(),
+    pct_white = sum(race_stan == 1) / n(),
+    pct_black = sum(race_stan == 2) / n(),
+    pct_other = sum(race_stan == 3) / n(),
+    total = n()
+  )
+```
+
+### Relative sex percentages over time
+
+```{r, echo = FALSE,message=FALSE, include = FALSE}
+
+sex_pct = relative_pct[, 1:3] %>%
+  gather(gender, pct, 2:3) %>%
+  mutate(Gender = ifelse(gender == "pct_male", "male_asym", "female_asym"))
+
+sex_pct_symptotic = relative_pct_symptotic[, 1:3] %>%
+  gather(gender, pct, 2:3) %>%
+  mutate(Gender = ifelse(gender == "pct_male", "male_sym", "female_sym"))
+sex_pct$pcr_week_ind = as.numeric(as.character(sex_pct$pcr_week_ind))
+sex_pct_symptotic$pcr_week_ind = as.numeric(as.character(sex_pct_symptotic$pcr_week_ind))
+sex_dist = ggplot() +
+  geom_point(data = sex_pct, aes(x = pcr_week_ind, y = pct, group = Gender, color = Gender)) +
+  geom_point(data = sex_pct_symptotic, aes(x = pcr_week_ind, y = pct, group = Gender, color = Gender)) +
+  geom_line(data = sex_pct, aes(x = pcr_week_ind, y = pct, group = Gender, color = Gender), linetype = 2) +
+  geom_line(data = sex_pct_symptotic, aes(x = pcr_week_ind, y = pct, group = Gender, color = Gender), linetype = 1) +
+  labs(title = "", x = "", y = "Proportion") +
+  scale_x_continuous(breaks = seq(from = min(sex_pct$pcr_week_ind), to = max(sex_pct$pcr_week_ind) + 1, length = 8), labels = c("Apr", "May", "Jun", "July", "Aug", "Sep", "Oct", "Nov")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust = 1.2), axis.text.y = element_text(size = 9)) +
+  theme(legend.position = "bottom", legend.text = element_text(size = 8))
+ggsave(sex_dist, width = 5, height = 3, units = "in", device = "png", file = "plot/sex_dist.png")
+```
+
+### Relative race pct over time
+
+```{r, echo = FALSE,message=FALSE, include = FALSE}
+
+race_pct = relative_pct[, c(1, 9:11)] %>%
+  gather(race, pct, 2:4) %>%
+  mutate(Race = ifelse(race == "pct_white", "white_asym", ifelse(race == "pct_black", "black_asym", "other_asym")))
+
+
+race_pct_symptotic = relative_pct_symptotic[, c(1, 9:11)] %>%
+  gather(race, pct, 2:4) %>%
+  mutate(Race = ifelse(race == "pct_white", "white_sym", ifelse(race == "pct_black", "black_sym", "other_sym")))
+
+race_pct$pcr_week_ind = as.numeric(as.character(race_pct$pcr_week_ind))
+race_pct_symptotic$pcr_week_ind = as.numeric(as.character(race_pct_symptotic$pcr_week_ind))
+
+race_dist = ggplot() +
+  geom_point(data = race_pct, aes(x = pcr_week_ind, y = pct, group = Race, color = Race)) +
+  geom_point(data = race_pct_symptotic, aes(x = pcr_week_ind, y = pct, group = Race, color = Race)) +
+  geom_line(data = race_pct, aes(x = pcr_week_ind, y = pct, group = Race, color = Race), linetype = 2) +
+  geom_line(data = race_pct_symptotic, aes(x = pcr_week_ind, y = pct, group = Race, color = Race), linetype = 1) +
+  labs(title = "", x = "", y = "Proportion") +
+  scale_x_continuous(breaks = seq(from = min(race_pct$pcr_week_ind), to = max(race_pct$pcr_week_ind) + 1, length = 8), labels = c("Apr", "May", "Jun", "July", "Aug", "Sep", "Oct", "Nov")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust = 1.2), axis.text.y = element_text(size = 9)) +
+  theme(legend.position = "bottom", legend.text = element_text(size = 8))
+ggsave(race_dist, width = 5, height = 3, units = "in", device = "png", file = "plot/race_dist.png")
+```
+
+### Relative age pct over time
+
+```{r, echo = FALSE,message=FALSE, include = FALSE}
+
+age_pct = relative_pct[, c(1, 4:8)] %>%
+  gather(age, pct, 2:6) %>%
+  mutate(Age = ifelse(age == "pct_age0_17", "age0_17_asym", ifelse(age == "pct_age18_39", "age18_39_asym", ifelse(age == "pct_age40_64", "age40_64_asym", ifelse(age == "pct_age65_75", "age65_75_asym", "age75_asym")))))
+
+
+age_pct_symptotic = relative_pct_symptotic[, c(1, 4:8)] %>%
+  gather(age, pct, 2:6) %>%
+  mutate(Age = ifelse(age == "pct_age0_17", "age0_17_sym", ifelse(age == "pct_age18_39", "age18_39_sym", ifelse(age == "pct_age40_64", "age40_64_sym", ifelse(age == "pct_age65_75", "age65_75_sym", "age75_sym")))))
+
+age_pct$pcr_week_ind = as.numeric(as.character(age_pct$pcr_week_ind))
+age_pct_symptotic$pcr_week_ind = as.numeric(as.character(age_pct_symptotic$pcr_week_ind))
+
+age_dist = ggplot() +
+  geom_point(data = age_pct, aes(x = pcr_week_ind, y = pct, group = Age, color = Age)) +
+  geom_point(data = age_pct_symptotic, aes(x = pcr_week_ind, y = pct, group = Age, color = Age)) +
+  geom_line(data = age_pct, aes(x = pcr_week_ind, y = pct, group = Age, color = Age), linetype = 2) +
+  geom_line(data = age_pct_symptotic, aes(x = pcr_week_ind, y = pct, group = Age, color = Age), linetype = 1) +
+  labs(title = "", x = "", y = "Proportion") +
+  scale_x_continuous(breaks = seq(from = min(age_pct$pcr_week_ind), to = max(age_pct$pcr_week_ind) + 1, length = 8), labels = c("Apr", "May", "Jun", "July", "Aug", "Sep", "Oct", "Nov")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust = 1.2), axis.text.y = element_text(size = 9)) +
+  theme(legend.position = "bottom", legend.text = element_text(size = 4.5))
+
+ggsave(age_dist, width = 5, height = 3, units = "in", device = "png", file = "plot/age_dist.png")
+```
+
+## MRP
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+# Perform MRP for asymptotic patients
+
+patient_data = patient_data %>%
+  mutate(
+    sex_age = ifelse(sex_stan == 0.5 & age_stan == 1, 1,
+      ifelse(sex_stan == 0.5 & age_stan == 2, 2,
+        ifelse(sex_stan == 0.5 & age_stan == 3, 3,
+          ifelse(sex_stan == 0.5 & age_stan == 4, 4, 5)
+        )
+      )
+    ),
+    sex_time = ifelse(sex_stan == 0.5, pcr_week_ind - 17, length(unique(pcr_week_ind)))
+  )
+
+
+pcr_data_stan = list(
+  N = dim(patient_data)[1], y = patient_data$y_response,
+  J_time = length(unique(patient_data$pcr_week_ind)),
+  male = patient_data$sex_stan, race = as.numeric(patient_data$race_stan), age = as.numeric(patient_data$age_stan),
+  week = patient_data$pcr_week_ind - 17,
+  county = patient_data$county_stan,
+  sex_age = patient_data$sex_age,
+  sex_time = patient_data$sex_time,
+  J_spec = 14, y_spec = c(0, 368, 30, 70, 1102, 300, 311, 500, 198, 99, 29, 146, 105, 50), n_spec = c(0, 371, 30, 70, 1102, 300, 311, 500, 200, 99, 31, 150, 108, 52), J_sens = 4, y_sens = c(70, 78, 27, 25), n_sens = c(100, 85, 37, 35), logit_spec_prior_scale = 0.2, logit_sens_prior_scale = 0.2, intercept_prior_mean = 0, intercept_prior_scale = 2.5, coef_prior_scale = 2.5, coef_prior_scale_time = 5, J = 2 * 3 * 5 * 2, N_pop = poststratification_table_nozip$N, N_acs = county.ps
+)
+
+mrp_pcr_fit = stan(file = "MRP.stan", data = pcr_data_stan_Andrew, refresh = 0, cores = 8, iter = 10000, chains = 2)
+
+
+est_raw_1 = data.frame(cbind(rep(c("Raw", "MRP-hospital", "MRP-community"), each = length(unique(PCR_prevalence_by_week$pcr_week_ind))), rep(PCR_prevalence_by_week$pcr_week_ind, 3), c(PCR_prevalence_by_week$prevalence, apply(rstan::extract(mrp_pcr_fit, "p_avg_h", permuted = TRUE)[[1]], 2, mean), apply(rstan::extract(mrp_pcr_fit, "p_avg_c", permuted = TRUE)[[1]], 2, mean)), c(rep(0, length(unique(PCR_prevalence_by_week$pcr_week_ind))), apply(rstan::extract(mrp_pcr_fit, "p_avg_h", permuted = TRUE)[[1]], 2, sd), apply(rstan::extract(mrp_pcr_fit, "p_avg_c", permuted = TRUE)[[1]], 2, sd))))
+names(est_raw_1) = c("type", "week", "est", "sd")
+est_raw_1$week = as.numeric(as.character(est_raw_1$week))
+est_raw_1$est = as.numeric(as.character(est_raw_1$est))
+est_raw_1$sd = as.numeric(as.character(est_raw_1$sd))
+
+ggplot(data = est_raw_1, aes(x = week, y = est, group = type, colour = type)) +
+  geom_point(aes(shape = type)) +
+  geom_line(aes(linetype = type, colour = type), alpha = 0.4) +
+  geom_errorbar(aes(ymin = est - sd, ymax = est + sd, linetype = type), width = 0.1, alpha = 0.4) +
+  labs(title = "", x = "", y = "PCR Prevalence") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.075)) +
+  scale_x_continuous(breaks = seq(from = min(est_raw_1$week), to = max(est_raw_1$week) + 1, length = 8), labels = c("Apr", "May", "Jun", "July", "Aug", "Sep", "Oct", "Nov")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust = 1.2), legend.title = element_blank(), legend.text = element_text(size = 7), legend.position = c(0.15, 0.75))
+ggsave(width = 5, height = 3, units = "in", device = "png", file = "plot/pcr_mrp_sd.png")
+```
+
+#Prediction of clinic burden
+
+```{r, echo = FALSE, message=FALSE}
+state_data = read.csv("./covid_report_county_region_date_1130.csv")
+state_data = janitor::clean_names(state_data)
+state_data = state_data %>%
+  mutate(
+    week_ind = week(strptime(date, "%Y-%m-%d")),
+    day_ind = yday(strptime(date, "%Y-%m-%d")),
+    positive_rate = covid_count / covid_test
+  ) %>%
+  filter(week_ind <= 48)
+
+# Calculate week level prevalence
+state_data_by_week = state_data %>%
+  filter(district == "1") %>%
+  # week_ind != max(week_ind )) #Remove latest week imcomplete data
+  group_by(week_ind) %>%
+  summarize(
+    total_test = sum(covid_test),
+    total_positive = sum(covid_count),
+    prevalence = sum(covid_count) / total_test
+  ) %>%
+  filter(
+    !is.na(prevalence) # remove missing data at beginning
+  )
+
+week.inc = count_comparison$week
+combine = data.frame(cbind(
+  week.inc, count_comparison$ratio,
+  state_data_by_week$prevalence[state_data_by_week$week_ind %in% week.inc],
+  est_raw_1$est[est_raw_1$type == "MRP-hospital" & est_raw_1$week %in% week.inc],
+  est_raw_1$est[est_raw_1$type == "MRP-community" & est_raw_1$week %in% week.inc],
+  est_raw_symptomatic$est[est_raw_symptomatic$type == "MRP-hospital" & est_raw_symptomatic$week %in% week.inc], est_raw_symptomatic$est[est_raw_symptomatic$type == "MRP-community" & est_raw_symptomatic$week %in% week.inc]
+))
+
+names(combine) = c("week", "ratio", "state", "Hospasym", "Comasym", "Hospsym", "Comsym")
+
+p_mrpc = subset(combine, select = c("week", "Comasym"))
+p_mrph = subset(combine, select = c("week", "Hospasym"))
+p_state = subset(combine, select = c("week", "state"))
+
+plot_mrpc = ggplot(data = p_mrpc, aes(x = week, y = Comasym)) +
+  geom_point() +
+  geom_line(alpha = 0.4) +
+  labs(title = "", x = "MRP-community", y = "PCR Prevalence") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.065)) +
+  scale_x_continuous(breaks = seq(from = min(combine_v_asym$week), to = max(combine_v_asym$week) - 2, length = 7), labels = c("May", "Jun", "July", "Aug", "Sep", "Oct", "Nov")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust = 0, size = 7), axis.text.y = element_text(size = 8), axis.title.x = element_text(size = 8), axis.title.y = element_text(size = 8), legend.position = "bottom", legend.title = element_blank(), legend.text = element_text(size = 9))
+
+plot_mrph = ggplot(data = p_mrph, aes(x = week, y = Hospasym)) +
+  geom_point() +
+  geom_line(alpha = 0.4) +
+  labs(title = "", x = "MRP-Hospital", y = "PCR Prevalence") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.065)) +
+  scale_x_continuous(breaks = seq(from = min(combine_v_asym$week), to = max(combine_v_asym$week) - 2, length = 7), labels = c("May", "Jun", "July", "Aug", "Sep", "Oct", "Nov")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust = 0, size = 7), axis.text.y = element_text(size = 8), axis.title.x = element_text(size = 8), axis.title.y = element_text(size = 8), legend.position = "bottom", legend.title = element_blank(), legend.text = element_text(size = 9))
+
+plot_state = ggplot(data = p_state, aes(x = week, y = state)) +
+  geom_point() +
+  geom_line(alpha = 0.4) +
+  labs(title = "", x = "State release: District 1", y = "PCR Prevalence") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.5)) +
+  scale_x_continuous(breaks = seq(from = min(combine_v_asym$week), to = max(combine_v_asym$week) - 2, length = 7), labels = c("May", "Jun", "July", "Aug", "Sep", "Oct", "Nov")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust = 0, size = 7), axis.text.y = element_text(size = 8), axis.title.x = element_text(size = 8), axis.title.y = element_text(size = 8), legend.position = "bottom", legend.title = element_blank(), legend.text = element_text(size = 9))
+
+ggsave(grid.arrange(plot_mrpc, plot_state,
+  nrow = 1
+), width = 5, height = 3, units = "in", device = "png", file = "plot/pcr_asym_mrpvsstate.png")
+
+state_hospitalization = read.csv("./hospitalization_1130.csv")
+state_hospitalization = janitor::clean_names(state_hospitalization)
+state_hospitalization = state_hospitalization %>%
+  mutate(
+    week_ind = week(strptime(date, "%Y-%m-%d")),
+    day_ind = yday(strptime(date, "%Y-%m-%d"))
+  ) %>%
+  filter(week_ind >= 18) %>%
+  filter(week_ind <= 48) %>%
+  group_by(week_ind) %>%
+  summarise(
+    bed_avg = mean(pct_beds_icu_occupied_covid_19) / 100,
+    vent_ave = mean(pct_vents_all_use_covid_19) / 100
+  )
+# Start from wwek 18 since our MRP result starts at week 18
+state_confirmed = read.csv("./covid_report_puibed_date.csv")
+
+state_confirmed = state_confirmed %>%
+  mutate(
+    week_ind = week(strptime(DATE, "%Y-%m-%d")),
+    day_ind = yday(strptime(DATE, "%Y-%m-%d"))
+  ) %>%
+  filter(week_ind >= 18) %>%
+  filter(week_ind <= 48) %>%
+  group_by(week_ind) %>%
+  summarise(total_confirmed = sum(TOTAL.COVID19.PATIENTS))
+state_hosp = data.frame(
+  seq(from = 1, to = dim(state_hospitalization)[1], by = 1),
+  state_hospitalization$bed_avg
+)
+names(state_hosp) = c("pcr_week_ind", "prevalence")
+
+plot_hosp = ggplot(data = state_hosp, aes(x = pcr_week_ind, y = prevalence)) +
+  geom_point() +
+  geom_line(alpha = 0.4) +
+  labs(title = "", x = "Bed occupancy-state", y = "Percentage") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.45)) +
+  scale_x_continuous(breaks = seq(from = min(state_hosp$pcr_week_ind) + 1, to = max(state_hosp$pcr_week_ind) - 2, length = 7), labels = c("May", "Jun", "July", "Aug", "Sep", "Oct", "Nov")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust = 0, size = 7), axis.text.y = element_text(size = 8), axis.title.x = element_text(size = 8), axis.title.y = element_text(size = 8), legend.position = "bottom", legend.title = element_blank(), legend.text = element_text(size = 9))
+
+
+state_confm = data.frame(
+  seq(from = 1, to = dim(state_confirmed)[1], by = 1),
+  state_confirmed$total_confirmed
+)
+names(state_confm) = c("pcr_week_ind", "count")
+
+plot_cofm = ggplot(data = state_confm, aes(x = pcr_week_ind, y = count)) +
+  geom_point() +
+  geom_line(alpha = 0.4) +
+  labs(title = "", x = "Confirmed hospitalization-state", y = "Count") +
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_continuous(breaks = seq(from = min(state_confm$pcr_week_ind) + 1, to = max(state_confm$pcr_week_ind) - 2, length = 7), labels = c("May", "Jun", "July", "Aug", "Sep", "Oct", "Nov")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust = 0, size = 7), axis.text.y = element_text(size = 8), axis.title.x = element_text(size = 8), axis.title.y = element_text(size = 8), legend.position = "bottom", legend.title = element_blank(), legend.text = element_text(size = 9))
+
+ggsave(grid.arrange(plot_mrpc, plot_state, plot_hosp, nrow = 3), width = 5, height = 4, units = "in", device = "png", file = "plot/pcr_asym_clinic.png")
+
+district1_hospitalization = read.csv("./Distrcit1_hospitalization_1130.csv")
+district1_hospitalization = janitor::clean_names(district1_hospitalization)
+district1_hospitalization_data = district1_hospitalization %>%
+  mutate(
+    week_ind = week(strptime(date, "%Y-%m-%d")),
+    day_ind = yday(strptime(date, "%Y-%m-%d"))
+  ) %>%
+  filter(week_ind >= 18) %>%
+  filter(week_ind <= 48) %>%
+  filter(county == "Lake" | county == "Porter") %>%
+  group_by(week_ind) %>%
+  summarise(
+    total_hospitalization = sum(hospitalization_count),
+    total_ed = sum(ed_visit_count)
+  )
+
+county_data = read.csv("./county_1130.csv")
+county_data = janitor::clean_names(county_data)
+county_data = county_data %>%
+  mutate(
+    week_ind = week(strptime(date, "%Y-%m-%d")),
+    day_ind = yday(strptime(date, "%Y-%m-%d")),
+    positive_rate = covid_count / covid_tests
+  ) %>%
+  filter(county_name == "Lake" | county_name == "Porter") %>%
+  filter(week_ind >= 18) %>%
+  filter(week_ind <= 48)
+
+county_data_by_week = county_data %>%
+  group_by(week_ind) %>%
+  summarize(
+    total_test = sum(covid_tests),
+    total_positive = sum(covid_count),
+    prevalence = sum(covid_count) / total_test
+  ) %>%
+  filter(
+    !is.na(prevalence) # remove missing data at beginning
+  )
+
+plot_mrp_sn = ggplot() +
+  geom_line(data = MRP_summary, aes(x = week, y = est)) +
+  geom_vline(xintercept = 45, linetype = "dashed") +
+  scale_x_continuous(breaks = seq(from = 36, to = 48, by = 1), labels = c("Sep1", "Sep8", "Sep15", "Sep22", "Sep29", "Oct6", "Oct13", "Oct20", "Oct27", "Nov3", "Nov10", "Nov17", "Nov24")) +
+  scale_y_continuous("MRP-Community") +
+  labs(title = "", x = "") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 6), axis.text.y = element_text(size = 6), axis.title.y = element_text(size = 6)) +
+  theme(legend.position = "bottom", legend.text = element_text(size = 7))
+
+plot_hosp_sn = ggplot() +
+  geom_line(data = District_hospitalization_summary, aes(x = week_ind, y = total_hospitalization)) +
+  geom_vline(xintercept = 46, linetype = "dashed") +
+  scale_x_continuous(breaks = seq(from = 36, to = 48, by = 1), labels = c("Sep1", "Sep8", "Sep15", "Sep22", "Sep29", "Oct6", "Oct13", "Oct20", "Oct27", "Nov3", "Nov10", "Nov17", "Nov24")) +
+  scale_y_continuous("#Hospitalization", expand = c(0, 0), limits = c(0, 250)) +
+  labs(title = "", x = "") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 6), axis.text.y = element_text(size = 6), axis.title.y = element_text(size = 6)) +
+  theme(legend.position = "bottom", legend.text = element_text(size = 7))
+
+plot_ed_sn = ggplot() +
+  geom_line(data = District_hospitalization_summary, aes(x = week_ind, y = total_ed)) +
+  geom_vline(xintercept = 45, linetype = "dashed") +
+  scale_x_continuous(breaks = seq(from = 36, to = 48, by = 1), labels = c("Sep1", "Sep8", "Sep15", "Sep22", "Sep29", "Oct6", "Oct13", "Oct20", "Oct27", "Nov3", "Nov10", "Nov17", "Nov24")) +
+  scale_y_continuous("#ED visit", expand = c(0, 0), limits = c(0, 700)) +
+  labs(title = "", x = "") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 6), axis.text.y = element_text(size = 6), axis.title.y = element_text(size = 6)) +
+  theme(legend.position = "bottom", legend.text = element_text(size = 7))
+
+plot_posir_sn = ggplot() +
+  geom_line(data = County_summary, aes(x = week_ind, y = prevalence)) +
+  scale_x_continuous(breaks = seq(from = 36, to = 48, by = 1), labels = c("Sep1", "Sep8", "Sep15", "Sep22", "Sep29", "Oct6", "Oct13", "Oct20", "Oct27", "Nov3", "Nov10", "Nov17", "Nov24")) +
+  scale_y_continuous("Positivity rate", expand = c(0, 0), limits = c(0, 0.5)) +
+  labs(title = "", x = "") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 6), axis.text.y = element_text(size = 6), axis.title.y = element_text(size = 6)) +
+  theme(legend.position = "bottom", legend.text = element_text(size = 7))
+
+plot_poscn_sn = ggplot() +
+  geom_line(data = County_summary, aes(x = week_ind, y = total_positive)) +
+  geom_vline(xintercept = 46, linetype = "dashed") +
+  scale_x_continuous(breaks = seq(from = 36, to = 48, by = 1), labels = c("Sep1", "Sep8", "Sep15", "Sep22", "Sep29", "Oct6", "Oct13", "Oct20", "Oct27", "Nov3", "Nov10", "Nov17", "Nov24")) +
+  scale_y_continuous("#Positive cases", expand = c(0, 0), limits = c(0, 5300)) +
+  labs(title = "", x = "") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 6), axis.text.y = element_text(size = 6), axis.title.y = element_text(size = 6)) +
+  theme(legend.position = "bottom", legend.text = element_text(size = 7))
+
+ggsave(grid.arrange(plot_mrp_sn, plot_posir_sn, plot_poscn_sn, plot_hosp_sn, plot_ed_sn,
+  nrow = 5, ncol = 1
+), width = 5, height = 6.25, units = "in", device = "png", file = "plot/clinic.png")
+```
