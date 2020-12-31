@@ -693,7 +693,7 @@ pcr_data_stan = list(
   J_spec = 14, y_spec = c(0, 368, 30, 70, 1102, 300, 311, 500, 198, 99, 29, 146, 105, 50), n_spec = c(0, 371, 30, 70, 1102, 300, 311, 500, 200, 99, 31, 150, 108, 52), J_sens = 4, y_sens = c(70, 78, 27, 25), n_sens = c(100, 85, 37, 35), logit_spec_prior_scale = 0.2, logit_sens_prior_scale = 0.2, intercept_prior_mean = 0, intercept_prior_scale = 2.5, coef_prior_scale = 2.5, coef_prior_scale_time = 5, J = 2 * 3 * 5 * 2, N_pop = poststratification_table_nozip$N, N_acs = county.ps
 )
 
-mrp_pcr_fit = stan(file = "MRP.stan", data = pcr_data_stan_Andrew, refresh = 0, cores = 8, iter = 10000, chains = 2)
+mrp_pcr_fit = stan(file = "MRP.stan", data = pcr_data_stan, refresh = 0, cores = 8, iter = 10000, chains = 2)
 
 
 est_raw_1 = data.frame(cbind(rep(c("Raw", "MRP-hospital", "MRP-community"), each = length(unique(PCR_prevalence_by_week$pcr_week_ind))), rep(PCR_prevalence_by_week$pcr_week_ind, 3), c(PCR_prevalence_by_week$prevalence, apply(rstan::extract(mrp_pcr_fit, "p_avg_h", permuted = TRUE)[[1]], 2, mean), apply(rstan::extract(mrp_pcr_fit, "p_avg_c", permuted = TRUE)[[1]], 2, mean)), c(rep(0, length(unique(PCR_prevalence_by_week$pcr_week_ind))), apply(rstan::extract(mrp_pcr_fit, "p_avg_h", permuted = TRUE)[[1]], 2, sd), apply(rstan::extract(mrp_pcr_fit, "p_avg_c", permuted = TRUE)[[1]], 2, sd))))
@@ -885,6 +885,10 @@ county_data_by_week = county_data %>%
     !is.na(prevalence) # remove missing data at beginning
   )
 
+MRP_summary <- est_raw_1 %>% 
+  filter(week>= 36 & week<=48) %>% 
+  filter(type == "MRP-community")
+
 plot_mrp_sn = ggplot() +
   geom_line(data = MRP_summary, aes(x = week, y = est)) +
   geom_vline(xintercept = 45, linetype = "dashed") +
@@ -896,7 +900,7 @@ plot_mrp_sn = ggplot() +
   theme(legend.position = "bottom", legend.text = element_text(size = 7))
 
 plot_hosp_sn = ggplot() +
-  geom_line(data = District_hospitalization_summary, aes(x = week_ind, y = total_hospitalization)) +
+  geom_line(data = district1_hospitalization_data, aes(x = week_ind, y = total_hospitalization)) +
   geom_vline(xintercept = 46, linetype = "dashed") +
   scale_x_continuous(breaks = seq(from = 36, to = 48, by = 1), labels = c("Sep1", "Sep8", "Sep15", "Sep22", "Sep29", "Oct6", "Oct13", "Oct20", "Oct27", "Nov3", "Nov10", "Nov17", "Nov24")) +
   scale_y_continuous("#Hospitalization", expand = c(0, 0), limits = c(0, 250)) +
@@ -906,7 +910,7 @@ plot_hosp_sn = ggplot() +
   theme(legend.position = "bottom", legend.text = element_text(size = 7))
 
 plot_ed_sn = ggplot() +
-  geom_line(data = District_hospitalization_summary, aes(x = week_ind, y = total_ed)) +
+  geom_line(data = district1_hospitalization_data, aes(x = week_ind, y = total_ed)) +
   geom_vline(xintercept = 45, linetype = "dashed") +
   scale_x_continuous(breaks = seq(from = 36, to = 48, by = 1), labels = c("Sep1", "Sep8", "Sep15", "Sep22", "Sep29", "Oct6", "Oct13", "Oct20", "Oct27", "Nov3", "Nov10", "Nov17", "Nov24")) +
   scale_y_continuous("#ED visit", expand = c(0, 0), limits = c(0, 700)) +
@@ -916,7 +920,7 @@ plot_ed_sn = ggplot() +
   theme(legend.position = "bottom", legend.text = element_text(size = 7))
 
 plot_posir_sn = ggplot() +
-  geom_line(data = County_summary, aes(x = week_ind, y = prevalence)) +
+  geom_line(data = county_data_by_week, aes(x = week_ind, y = prevalence)) +
   scale_x_continuous(breaks = seq(from = 36, to = 48, by = 1), labels = c("Sep1", "Sep8", "Sep15", "Sep22", "Sep29", "Oct6", "Oct13", "Oct20", "Oct27", "Nov3", "Nov10", "Nov17", "Nov24")) +
   scale_y_continuous("Positivity rate", expand = c(0, 0), limits = c(0, 0.5)) +
   labs(title = "", x = "") +
@@ -925,7 +929,7 @@ plot_posir_sn = ggplot() +
   theme(legend.position = "bottom", legend.text = element_text(size = 7))
 
 plot_poscn_sn = ggplot() +
-  geom_line(data = County_summary, aes(x = week_ind, y = total_positive)) +
+  geom_line(data = county_data_by_week, aes(x = week_ind, y = total_positive)) +
   geom_vline(xintercept = 46, linetype = "dashed") +
   scale_x_continuous(breaks = seq(from = 36, to = 48, by = 1), labels = c("Sep1", "Sep8", "Sep15", "Sep22", "Sep29", "Oct6", "Oct13", "Oct20", "Oct27", "Nov3", "Nov10", "Nov17", "Nov24")) +
   scale_y_continuous("#Positive cases", expand = c(0, 0), limits = c(0, 5300)) +
