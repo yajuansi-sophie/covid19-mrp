@@ -1,0 +1,1260 @@
+---
+title: "A design for hospital-based coronavirus tracking"
+author: "Len Covello, Andrew Gelman, Yajuan Si, and Siquan Wang"
+date: "12/21/2020"
+output:
+  word_document: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+bibliography: covid20.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE, results = FALSE, warning = FALSE, echo = FALSE}
+library("tidyverse")
+library("rstanarm")
+library("rstan")
+library("readxl")
+library("shinystan")
+library("knitr")
+library("data.table")
+library("gridExtra")
+library("mgcv")
+library("ggpubr")
+```
+
+
+## Data Import and Manipulation
+
+```{r,results = FALSE, warning=FALSE,message=FALSE, echo = FALSE}
+age_sex = read_csv(file = "./ACSST5Y2018.S0101_data_with_overlays_2020-08-11T110209.csv")
+
+age_sex_white = read_csv(file = "./white.csv")
+age_sex_black = read_csv(file = "./black.csv")
+
+age_sex = age_sex[3:4, ]
+age_sex_white = age_sex_white[3:4, ]
+age_sex_black = age_sex_black[3:4, ]
+
+for (j in 3:dim(age_sex)[2]) {
+  age_sex[, j] = as.numeric(unlist(age_sex[, j]))
+}
+
+for (j in 3:dim(age_sex_white)[2]) {
+  age_sex_white[, j] = as.numeric(unlist(age_sex_white[, j]))
+  age_sex_black[, j] = as.numeric(unlist(age_sex_black[, j]))
+}
+white = cbind(
+  # 0-17 F W
+  apply(age_sex_white[, seq(37, 43, by = 2)], 1, sum),
+  # 0-17 M W
+  apply(age_sex_white[, seq(7, 13, by = 2)], 1, sum),
+  # 18-34 F W
+  apply(age_sex_white[, seq(45, 51, by = 2)], 1, sum),
+  # 18-34 M W
+  apply(age_sex_white[, seq(15, 21, by = 2)], 1, sum),
+  # 35-64 F W
+  apply(age_sex_white[, seq(53, 57, by = 2)], 1, sum),
+  # 35-64 M W
+  apply(age_sex_white[, seq(23, 27, by = 2)], 1, sum),
+  # 65-75 F W
+  apply(age_sex_white[, seq(59, 60, by = 2)], 1, sum),
+  # 65-75 M W
+  apply(age_sex_white[, seq(29, 30, by = 2)], 1, sum),
+  # 75 F W
+  apply(age_sex_white[, c(61, 63)], 1, sum),
+  # 75 M W
+  apply(age_sex_white[, seq(31, 33, by = 2)], 1, sum)
+)
+
+
+black = cbind(
+  # 0-17 F W
+  apply(age_sex_black[, seq(37, 43, by = 2)], 1, sum),
+  # 0-17 M W
+  apply(age_sex_black[, seq(7, 13, by = 2)], 1, sum),
+  # 18-34 F W
+  apply(age_sex_black[, seq(45, 51, by = 2)], 1, sum),
+  # 18-34 M W
+  apply(age_sex_black[, seq(15, 21, by = 2)], 1, sum),
+  # 35-64 F W
+  apply(age_sex_black[, seq(53, 57, by = 2)], 1, sum),
+  # 35-64 M W
+  apply(age_sex_black[, seq(23, 27, by = 2)], 1, sum),
+  # 65-75 F W
+  apply(age_sex_black[, seq(59, 60, by = 2)], 1, sum),
+  # 65-75 M W
+  apply(age_sex_black[, seq(29, 30, by = 2)], 1, sum),
+  # 75 F W
+  apply(age_sex_black[c(61, 63)], 1, sum),
+  # 75 M W
+  apply(age_sex_black[, seq(31, 33, by = 2)], 1, sum)
+)
+
+all_sexage = cbind(
+  # 0-17 F
+  apply(age_sex[, 263], 1, sum),
+  # 0-17 M
+  apply(age_sex[, 259], 1, sum),
+  # 18-34 F
+  apply(age_sex[, c(275, 83, 95)], 1, sum),
+  # 18-34 M
+  apply(age_sex[, c(271, 79, 91)], 1, sum),
+  # 35-64 F
+  apply(age_sex[, c(seq(107, 155, by = 12), 166)], 1, sum),
+  # 35-64 M
+  apply(age_sex[, c(seq(103, 151, by = 12), 162)], 1, sum),
+  # 65-75 F
+  apply(age_sex[, c(179, 191)], 1, sum),
+  # 65-75 M
+  apply(age_sex[, c(175, 187)], 1, sum),
+  # 75 F
+  apply(age_sex[, 370], 1, sum),
+  # 75 M
+  apply(age_sex[, 366], 1, sum)
+)
+
+
+other = all_sexage - white - black
+county.ps = c(
+  white[, 1], black[, 1], other[, 1], white[, 3], black[, 3], other[, 3],
+  white[, 5], black[, 5], other[, 5], white[, 7], black[, 7], other[, 7],
+  white[, 9], black[, 9], other[, 9],
+  white[, 2], black[, 2], other[, 2], white[, 4], black[, 4], other[, 4],
+  white[, 6], black[, 6], other[, 6], white[, 8], black[, 8], other[, 8],
+  white[, 10], black[, 10], other[, 10]
+)
+
+patient_data = read_csv(file = "./IgG_testdata.csv", na = c("", "#NUM!"))
+patient_data = janitor::clean_names(patient_data)
+
+###### Data split before/after 2/17/2021
+patient_data = patient_data[!duplicated(patient_data$masked_identifier),]
+#! duplicate would be good, it will only consider the latest obs, if igg not changing, keep the latest obs would be fine, if igg changes from - to +, keep the latest obs would also be fine. 
+patient_data  = patient_data  %>% 
+  mutate(week_ind_iggn = week(strptime(iggn_result_date,"%m/%d/%Y")),
+         year_ind_iggn = year(strptime(iggn_result_date,"%m/%d/%Y"))
+  ) %>% 
+  mutate(week_ind_iggn = ifelse(year_ind_iggn==2021 & week_ind_iggn == 1, 54, 
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 2, 55,
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 3, 56,
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 4, 57,
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 5, 58,
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 6, 59, 
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 7, 60, week_ind_iggn)))))))) %>% 
+  mutate(week_ind_iggn = ifelse(year_ind_iggn==2021 & week_ind_iggn == 8, 61, 
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 9, 62,
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 10, 63,
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 11, 64,
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 12, 65,
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 13, 66, 
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 14, 67, week_ind_iggn)))))))) %>% 
+  mutate(week_ind_iggn = ifelse(year_ind_iggn==2021 & week_ind_iggn == 15, 68, 
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 16, 69,
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 17, 70,
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 18, 71,
+                         ifelse(year_ind_iggn==2021 & week_ind_iggn == 19, 72, week_ind_iggn))))))
+patient_data$indicator <- 0
+patient_data[which(is.na(patient_data$iggs_order_results) & patient_data$week_ind_iggn <= 59),]$indicator <- 1
+patient_data_before <- patient_data %>% 
+  filter(patient_data$indicator == 1) %>% 
+  select(-c(indicator))
+patient_data_after <- patient_data %>% 
+  filter(patient_data$indicator == 0) %>% 
+  select(-c(week_ind_iggn,year_ind_iggn,indicator))
+
+###### Deal with before data
+patient_data_igg_before = patient_data_before %>% # no NA in IGGn results since we select using indicator above
+  mutate(igg_week_ind = week_ind_iggn) %>% 
+  mutate(igg_result = ifelse(iggn_order_results == "Positive", "Positive", "Negative")) 
+###### Deal with after data
+
+#Create new igg results based on rules Len provided, be careful about the strange behavior for NA during ifelse
+patient_data_igg_after = patient_data_after %>% 
+  filter(!is.na(iggn_order_results) | !is.na(iggs_order_results))
+patient_data_igg_after[is.na(patient_data_igg_after)] <- "Nooooo"
+
+patient_data_igg_after <- patient_data_igg_after %>% 
+  mutate(cat = ifelse(iggn_order_results == "Positive" & iggs_order_results == "Positive", 1, 
+               ifelse(iggn_order_results == "Positive" & iggs_order_results == "Negative", 2,
+               ifelse(iggn_order_results == "Positive" & iggs_order_results == "Nooooo", 3,
+               ifelse(iggn_order_results == "Negative" & iggs_order_results == "Positive", 4,
+               ifelse(iggn_order_results == "Negative" & iggs_order_results == "Negative",5,  
+               ifelse(iggn_order_results == "Negative" & iggs_order_results == "Nooooo", 6,
+               ifelse(iggn_order_results== "Nooooo" & iggs_order_results == "Positive", 7,         
+               ifelse(iggn_order_results== "Nooooo" & iggs_order_results == "Negative",8,9)))))))),
+        igg_result = ifelse(cat %in% c(1,2,3,4,7), "Positive", ifelse(cat %in% c(5,6,8), "Negative", "In process")))
+table(patient_data_igg_after$cat, exclude = NULL)
+table(patient_data_igg_after$igg_result, exclude = NULL)
+patient_data_igg_after[patient_data_igg_after == "Nooooo"] <- NA
+
+
+patient_data_igg_after  <- patient_data_igg_after %>% 
+    filter(igg_result != "In process") %>% 
+    mutate(
+    iggn_week_ind = week(strptime(iggn_result_date, "%m/%d/%Y")),
+    iggn_day_ind = yday(strptime(iggn_result_date, "%m/%d/%Y")),
+    iggn_year_ind = year(strptime(iggn_result_date, "%m/%d/%Y")),
+    iggs_week_ind = week(strptime(iggs_result_date, "%m/%d/%Y")),
+    iggs_day_ind = yday(strptime(iggs_result_date, "%m/%d/%Y")),
+    iggs_year_ind = year(strptime(iggs_result_date, "%m/%d/%Y")),
+    iggs_month_ind = month(strptime(iggs_result_date, "%m/%d/%Y")),
+    iggn_month_ind = month(strptime(iggn_result_date, "%m/%d/%Y")),
+    ) %>% #starting from week 18 in 2020
+    mutate(iggn_week_ind = ifelse(iggn_year_ind==2021 & iggn_week_ind == 1, 54, 
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 2, 55,
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 3, 56,
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 4, 57,
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 5, 58,
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 6, 59, 
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 7, 60,
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 8, 61, 
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 9, 62,
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 10, 63,
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 11, 64,
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 12, 65,
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 13, 66, 
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 14, 67, 
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 15, 68, 
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 16, 69,
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 17, 70,
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 18, 71,
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 19, 72, 
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 20, 73,       
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 21, 74,       
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 22, 75,       
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 23, 76,       
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 24, 77,
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 25, 78,       
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 26, 79,       
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 27, 80, 
+                           ifelse(iggn_year_ind==2021 & iggn_week_ind == 28, 81,
+                                 iggn_week_ind))))))))))))))))))))))))))))) %>% 
+  #iggs only has 2021 data, not need to worry about duplication
+   mutate(iggs_week_ind = ifelse(iggs_year_ind==2021 & iggs_week_ind == 1, 54, 
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 2, 55,
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 3, 56,
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 4, 57,
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 5, 58,
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 6, 59, 
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 7, 60,
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 8, 61, 
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 9, 62,
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 10, 63,
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 11, 64,
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 12, 65,
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 13, 66, 
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 14, 67, 
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 15, 68, 
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 16, 69,
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 17, 70,
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 18, 71,
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 19, 72, 
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 20, 73,       
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 21, 74,       
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 22, 75,       
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 23, 76,       
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 24, 77,
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 25, 78,       
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 26, 79,       
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 27, 80, 
+                           ifelse(iggs_year_ind==2021 & iggs_week_ind == 28, 81,
+                                 iggs_week_ind))))))))))))))))))))))))))))) %>%  
+  mutate(igg_week_ind = ifelse(!is.na(iggs_week_ind), iggs_week_ind, iggn_week_ind)) %>% 
+  mutate(igg_month_ind = ifelse(!is.na(iggs_month_ind), iggs_month_ind, iggn_month_ind)) %>% 
+  filter(!is.na(igg_week_ind)) #some patient has IgG N result but no test date, like 31817776
+
+##### PCR data
+patient_data_pcr <- patient_data %>% 
+  mutate(
+    pcr_week_ind = week(strptime(rna_antigen_result_date, "%m/%d/%Y")),
+    pcr_day_ind = yday(strptime(rna_antigen_result_date, "%m/%d/%Y")),
+    pcr_year_ind = year(strptime(rna_antigen_result_date, "%m/%d/%Y"))
+  ) %>% 
+  mutate(pcr_week_ind = ifelse(pcr_year_ind == 2021 & pcr_week_ind == 1, 54, 
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 2, 55,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 3, 56,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 4, 57,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 5, 58,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 6, 59,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 7, 60,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 8, 61,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 9, 62,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 10, 63,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 11, 64,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 12, 65,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 13, 66,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 14, 67,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 15, 68,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 16, 69,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 17, 70,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 18, 71,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 19, 72,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 20, 73,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 21, 74,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 22, 75,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 23, 76,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 24, 77,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 25, 78,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 26, 79,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 27, 80,
+                        ifelse(pcr_year_ind == 2021 & pcr_week_ind == 28, 81,
+                               pcr_week_ind))))))))))))))))))))))))))))) %>% 
+  filter(!is.na(rna_antigen_order_results)) %>% 
+  mutate(pcr_result = ifelse(rna_antigen_order_results == "Positive", "Positive", "Negative"))
+```
+
+## Data Cleaning
+
+```{r, echo = FALSE,, results = FALSE, message=FALSE}
+##### Deal with after data
+dim(patient_data_igg_before)
+patient_data_igg_before = filter(patient_data_igg_before, is.na(patient_data_igg_before$age) != 1 & is.na(patient_data_igg_before$sex) != 1 & is.na(patient_data_igg_before$race) != 1 & patient_data_igg_before$sex != "Unknown" & patient_data_igg_before$race != "Unknown" & patient_data_igg_before$age != "Unknown") ### One more filter for county is in next chunk
+dim(patient_data_igg_before)
+patient_data_igg_before = patient_data_igg_before[!duplicated(patient_data_igg_before$masked_identifier), ] ###Too much duplicate idnentifider
+dim(patient_data_igg_before)
+##### Deal with before data
+dim(patient_data_igg_after)
+patient_data_igg_after = filter(patient_data_igg_after, is.na(patient_data_igg_after$age) != 1 & is.na(patient_data_igg_after$sex) != 1 & is.na(patient_data_igg_after$race) != 1 & patient_data_igg_after$sex != "Unknown" & patient_data_igg_after$race != "Unknown" & patient_data_igg_after$age != "Unknown") ### One more filter for county is in next chunk
+dim(patient_data_igg_after)
+patient_data_igg_after = patient_data_igg_after[!duplicated(patient_data_igg_after$masked_identifier), ] ###Too much duplicate idnentifider
+dim(patient_data_igg_after)
+
+```
+
+## Exploratory Data Analysis
+
+```{r, echo = FALSE, results=FALSE, message=FALSE}
+
+##### Deal with before data
+# Recode the zip code data
+patient_data_igg_before = mutate(patient_data_igg_before,
+  county = ifelse(zip %in% c(46303, 46307:46308, 46311:46327, 46342, 46355, 46356, 46373, 46375:46377, 46394:46411, 60004:60827), 1,
+    ifelse(zip %in% c(46301:46302, 46304, 46341, 46347, 46360:46393), 2, NA)
+  )
+)
+
+patient_data_igg_before = patient_data_igg_before %>% filter(!is.na(county))
+
+zip_stan_725_before = as.factor(patient_data_igg_before$zip)
+map_725_before = levels(zip_stan_725_before)
+levels(zip_stan_725_before) = 1:length(map_725_before)
+patient_data_igg_before = mutate(patient_data_igg_before,
+  zip = as.factor(zip),
+  sex_stan = ifelse(sex == "Female", -0.5, 0.5),
+  y_response = ifelse(igg_result == "Negative", 0, 1), 
+  igg_result_numerica = ifelse(igg_result == "Negative", 0, 1),
+  age_stan = factor(ifelse(age >= 0 & age < 18, 1,
+    ifelse(age >= 18 & age < 35, 2,
+      ifelse(age >= 35 & age < 65, 3,
+        ifelse(age >= 65 & age < 75, 4, 5)
+      )
+    )
+  )),
+  race_stan = ifelse(race == "White or Caucasian", 1,
+    ifelse(race == "Black or African American", 2, 3)
+  ),
+  zip_stan = zip_stan_725_before,
+  county_stan = county
+)
+##### Deal with after data
+patient_data_igg_after = mutate(patient_data_igg_after,
+  county = ifelse(zip %in% c(46303, 46307:46308, 46311:46327, 46342, 46355, 46356, 46373, 46375:46377, 46394:46411, 60004:60827), 1,
+    ifelse(zip %in% c(46301:46302, 46304, 46341, 46347, 46360:46393), 2, NA)
+  )
+)
+
+patient_data_igg_after = patient_data_igg_after %>% filter(!is.na(county))
+
+zip_stan_725_after = as.factor(patient_data_igg_after$zip)
+map_725_after = levels(zip_stan_725_after)
+levels(zip_stan_725_after) = 1:length(map_725_after)
+patient_data_igg_after = mutate(patient_data_igg_after,
+  zip = as.factor(zip),
+  sex_stan = ifelse(sex == "Female", -0.5, 0.5),
+  y_response = ifelse(igg_result == "Negative", 0, 1), 
+  igg_result_numerica = ifelse(igg_result == "Negative", 0, 1),
+  age_stan = factor(ifelse(age >= 0 & age < 18, 1,
+    ifelse(age >= 18 & age < 35, 2,
+      ifelse(age >= 35 & age < 65, 3,
+        ifelse(age >= 65 & age < 75, 4, 5)
+      )
+    )
+  )),
+  race_stan = ifelse(race == "White or Caucasian", 1,
+    ifelse(race == "Black or African American", 2, 3)
+  ),
+  zip_stan = zip_stan_725_after,
+  county_stan = county
+)
+```
+
+## Construct postratification table
+
+```{r,echo = FALSE, warning=FALSE,results=FALSE,message=FALSE}
+# Read and clean the data
+poststratify_data = read_excel("./Data Stratification_2020 05 27.xlsx",
+  sheet = "Data dump_LakePorterCook3"
+) %>%
+  slice(2:(n() - 1)) # Drop the first and last row
+poststratify_data = janitor::clean_names(poststratify_data)
+poststratify_data = poststratify_data %>%
+  separate(zip_city_state_county, into = c("zip", "city"), sep = " ") %>%
+  select(-city)
+poststratify_data = poststratify_data %>%
+  mutate(
+    sex_stan = ifelse(sex == "F", -0.5, 0.5),
+    race_stan = ifelse(race_description == "White", 1,
+      ifelse(race_description == "Black African American", 2, 3)
+    ),
+    age_stan = ifelse(market_share_binned_age == "0-17 yrs", 1,
+      ifelse(market_share_binned_age == "18-24 yrs" |
+        market_share_binned_age == "25-29 yrs" |
+        market_share_binned_age == "30-34 yrs", 2,
+      ifelse(market_share_binned_age == "35-39 yrs" | market_share_binned_age == "40-44 yrs" |
+        market_share_binned_age == "45-49 yrs" |
+        market_share_binned_age == "50-54 yrs" |
+        market_share_binned_age == "55-59 yrs" |
+        market_share_binned_age == "60-64 yrs", 3,
+      ifelse(market_share_binned_age == "65-69 yrs" | market_share_binned_age == "70-74 yrs", 4, 5)
+      )
+      )
+    ),
+    county_stan = ifelse(county == 93 | county == 45, 1, 2)
+  )
+
+# Change those new created variables into factors
+poststratify_data = poststratify_data %>%
+  mutate(
+    sex_stan = as.factor(sex_stan),
+    race_stan = as.factor(race_stan),
+    age_stan = as.factor(age_stan),
+    zip = as.factor(zip),
+    county_stan = as.factor(county_stan),
+    grand_total = as.numeric(grand_total)
+  )
+
+# Still need to relabel the zip code
+zip_stan_post = poststratify_data$zip
+map_post = levels(zip_stan_post)
+levels(zip_stan_post) = 1:length(map_post)
+poststratify_data = poststratify_data %>%
+  mutate(
+    zip_stan = zip_stan_post
+  )
+
+```
+
+```{r, echo = FALSE, warning=FALSE,results = FALSE, message=FALSE}
+# Construct poststratification table without zip code
+
+poststratification_table_nozip = poststratify_data %>%
+  group_by(sex_stan, age_stan, race_stan, county_stan) %>%
+  summarize(
+    N = sum(grand_total)
+  )
+dim(poststratification_table_nozip)
+```
+
+### MRP
+
+```{r}
+IGG_data_before = patient_data_igg_before%>% 
+  filter(!is.na(igg_result)) 
+
+IGG_data_after = patient_data_igg_after%>% 
+  filter(!is.na(igg_result))
+
+IGG_data_before = IGG_data_before %>%
+  mutate(age_week = case_when(age_stan == 2 & igg_week_ind == 18 ~ 1,
+                      age_stan == 3 & igg_week_ind == 18 ~ 2,       
+                      age_stan == 4 & igg_week_ind == 18 ~ 3, 
+                      age_stan == 5 & igg_week_ind == 18 ~ 4,
+                      age_stan == 2 & igg_week_ind == 19 ~ 5,
+                      age_stan == 3 & igg_week_ind == 19 ~ 6,
+                      age_stan == 4 & igg_week_ind == 19 ~ 7,
+                      age_stan == 5 & igg_week_ind == 19 ~ 8,
+                      age_stan == 2 & igg_week_ind == 20 ~ 9,
+                      age_stan == 3 & igg_week_ind == 20 ~ 10,       
+                      age_stan == 4 & igg_week_ind == 20 ~ 11,
+                      age_stan == 5 & igg_week_ind == 20 ~ 12,
+                      age_stan == 2 & igg_week_ind == 21 ~ 13,
+                      age_stan == 3 & igg_week_ind == 21 ~ 14,
+                      age_stan == 4 & igg_week_ind == 21 ~ 15,
+                      age_stan == 5 & igg_week_ind == 21 ~ 16,
+                      age_stan == 2 & igg_week_ind == 22 ~ 17,
+                      age_stan == 3 & igg_week_ind == 22 ~ 18,
+                      age_stan == 4 & igg_week_ind == 22 ~ 19,                          
+                      age_stan == 5 & igg_week_ind == 22 ~ 20,       
+                      age_stan == 2 & igg_week_ind == 23 ~ 21,
+                      age_stan == 3 & igg_week_ind == 23 ~ 22,
+                      age_stan == 4 & igg_week_ind == 23 ~ 23,                         
+                      age_stan == 5 & igg_week_ind == 23 ~ 24, 
+                      age_stan == 2 & igg_week_ind == 24 ~ 25,
+                      age_stan == 3 & igg_week_ind == 24 ~ 26,
+                      age_stan == 4 & igg_week_ind == 24 ~ 27,                         
+                      age_stan == 5 & igg_week_ind == 24 ~ 28, 
+                      age_stan == 2 & igg_week_ind == 25 ~ 29,
+                      age_stan == 3 & igg_week_ind == 25 ~ 30,
+                      age_stan == 4 & igg_week_ind == 25 ~ 31,                         
+                      age_stan == 5 & igg_week_ind == 25 ~ 32, 
+                      age_stan == 2 & igg_week_ind == 26 ~ 33,
+                      age_stan == 3 & igg_week_ind == 26 ~ 34,
+                      age_stan == 4 & igg_week_ind == 26 ~ 35,                         
+                      age_stan == 5 & igg_week_ind == 26 ~ 36, 
+                      age_stan == 2 & igg_week_ind == 27 ~ 37,
+                      age_stan == 3 & igg_week_ind == 27 ~ 38,
+                      age_stan == 4 & igg_week_ind == 27 ~ 39, 
+                      age_stan == 5 & igg_week_ind == 27 ~ 40,
+                      age_stan == 2 & igg_week_ind == 28 ~ 41,
+                      age_stan == 3 & igg_week_ind == 28 ~ 42,
+                      age_stan == 4 & igg_week_ind == 28 ~ 43, 
+                      age_stan == 5 & igg_week_ind == 28 ~ 44,
+                      age_stan == 2 & igg_week_ind == 29 ~ 45,
+                      age_stan == 3 & igg_week_ind == 29 ~ 46,
+                      age_stan == 4 & igg_week_ind == 29 ~ 47, 
+                      age_stan == 5 & igg_week_ind == 29 ~ 48,
+                      age_stan == 2 & igg_week_ind == 30 ~ 49,
+                      age_stan == 3 & igg_week_ind == 30 ~ 50,
+                      age_stan == 4 & igg_week_ind == 30 ~ 51, 
+                      age_stan == 5 & igg_week_ind == 30 ~ 52,
+                      age_stan == 2 & igg_week_ind == 31 ~ 53,
+                      age_stan == 3 & igg_week_ind == 31 ~ 54,
+                      age_stan == 4 & igg_week_ind == 31 ~ 55, 
+                      age_stan == 5 & igg_week_ind == 31 ~ 56,
+                      age_stan == 2 & igg_week_ind == 32 ~ 57,
+                      age_stan == 3 & igg_week_ind == 32 ~ 58,
+                      age_stan == 4 & igg_week_ind == 32 ~ 59, 
+                      age_stan == 5 & igg_week_ind == 32 ~ 60,
+                      age_stan == 2 & igg_week_ind == 33 ~ 61,
+                      age_stan == 3 & igg_week_ind == 33 ~ 62,
+                      age_stan == 4 & igg_week_ind == 33 ~ 63, 
+                      age_stan == 5 & igg_week_ind == 33 ~ 64,
+                      age_stan == 2 & igg_week_ind == 34 ~ 65,
+                      age_stan == 3 & igg_week_ind == 34 ~ 66,
+                      age_stan == 4 & igg_week_ind == 34 ~ 67, 
+                      age_stan == 5 & igg_week_ind == 34 ~ 68,
+                      age_stan == 2 & igg_week_ind == 35 ~ 69,
+                      age_stan == 3 & igg_week_ind == 35 ~ 70,
+                      age_stan == 4 & igg_week_ind == 35 ~ 71, 
+                      age_stan == 5 & igg_week_ind == 35 ~ 72,
+                      age_stan == 2 & igg_week_ind == 36 ~ 73,
+                      age_stan == 3 & igg_week_ind == 36 ~ 74,
+                      age_stan == 4 & igg_week_ind == 36 ~ 75, 
+                      age_stan == 5 & igg_week_ind == 36 ~ 76,
+                      age_stan == 2 & igg_week_ind == 37 ~ 77,
+                      age_stan == 3 & igg_week_ind == 37 ~ 78,
+                      age_stan == 4 & igg_week_ind == 37 ~ 79, 
+                      age_stan == 5 & igg_week_ind == 37 ~ 80,
+                      age_stan == 2 & igg_week_ind == 38 ~ 81,
+                      age_stan == 3 & igg_week_ind == 38 ~ 82,
+                      age_stan == 4 & igg_week_ind == 38 ~ 83, 
+                      age_stan == 5 & igg_week_ind == 38 ~ 84,
+                      age_stan == 2 & igg_week_ind == 39 ~ 85,
+                      age_stan == 3 & igg_week_ind == 39 ~ 86,
+                      age_stan == 4 & igg_week_ind == 39 ~ 87, 
+                      age_stan == 5 & igg_week_ind == 39 ~ 88,
+                      age_stan == 2 & igg_week_ind == 40 ~ 89,
+                      age_stan == 3 & igg_week_ind == 40 ~ 90,
+                      age_stan == 4 & igg_week_ind == 40 ~ 91, 
+                      age_stan == 5 & igg_week_ind == 40 ~ 92,
+                      age_stan == 2 & igg_week_ind == 41 ~ 93,
+                      age_stan == 3 & igg_week_ind == 41 ~ 94,
+                      age_stan == 4 & igg_week_ind == 41 ~ 95, 
+                      age_stan == 5 & igg_week_ind == 41 ~ 96,
+                      age_stan == 2 & igg_week_ind == 42 ~ 97,
+                      age_stan == 3 & igg_week_ind == 42 ~ 98,
+                      age_stan == 4 & igg_week_ind == 42 ~ 99, 
+                      age_stan == 5 & igg_week_ind == 42 ~ 100,
+                      age_stan == 2 & igg_week_ind == 43 ~ 101,
+                      age_stan == 3 & igg_week_ind == 43 ~ 102,
+                      age_stan == 4 & igg_week_ind == 43 ~ 103, 
+                      age_stan == 5 & igg_week_ind == 43 ~ 104,
+                      age_stan == 2 & igg_week_ind == 44 ~ 105,
+                      age_stan == 3 & igg_week_ind == 44 ~ 106,
+                      age_stan == 4 & igg_week_ind == 44 ~ 107, 
+                      age_stan == 5 & igg_week_ind == 44 ~ 108,
+                      age_stan == 2 & igg_week_ind == 45 ~ 109,
+                      age_stan == 3 & igg_week_ind == 45 ~ 110,
+                      age_stan == 4 & igg_week_ind == 45 ~ 111, 
+                      age_stan == 5 & igg_week_ind == 45 ~ 112,
+                      age_stan == 2 & igg_week_ind == 46 ~ 113,
+                      age_stan == 3 & igg_week_ind == 46 ~ 114,
+                      age_stan == 4 & igg_week_ind == 46 ~ 115, 
+                      age_stan == 5 & igg_week_ind == 46 ~ 116,
+                      age_stan == 2 & igg_week_ind == 47 ~ 117,
+                      age_stan == 3 & igg_week_ind == 47 ~ 118,
+                      age_stan == 4 & igg_week_ind == 47 ~ 119, 
+                      age_stan == 5 & igg_week_ind == 47 ~ 120,
+                      age_stan == 2 & igg_week_ind == 48 ~ 121,
+                      age_stan == 3 & igg_week_ind == 48 ~ 122,
+                      age_stan == 4 & igg_week_ind == 48 ~ 123, 
+                      age_stan == 5 & igg_week_ind == 48 ~ 124,
+                      age_stan == 2 & igg_week_ind == 49 ~ 125,
+                      age_stan == 3 & igg_week_ind == 49 ~ 126,
+                      age_stan == 4 & igg_week_ind == 49 ~ 127, 
+                      age_stan == 5 & igg_week_ind == 49 ~ 128,
+                      age_stan == 2 & igg_week_ind == 50 ~ 129,
+                      age_stan == 3 & igg_week_ind == 50 ~ 130,
+                      age_stan == 4 & igg_week_ind == 50 ~ 131, 
+                      age_stan == 5 & igg_week_ind == 50 ~ 132,
+                      age_stan == 2 & igg_week_ind == 51 ~ 133,
+                      age_stan == 3 & igg_week_ind == 51 ~ 134,
+                      age_stan == 4 & igg_week_ind == 51 ~ 135, 
+                      age_stan == 5 & igg_week_ind == 51 ~ 136,
+                      age_stan == 2 & igg_week_ind == 52 ~ 137,
+                      age_stan == 3 & igg_week_ind == 52 ~ 138,
+                      age_stan == 4 & igg_week_ind == 52 ~ 139, 
+                      age_stan == 5 & igg_week_ind == 52 ~ 140,
+                      age_stan == 2 & igg_week_ind == 53 ~ 141,
+                      age_stan == 3 & igg_week_ind == 53 ~ 142,
+                      age_stan == 4 & igg_week_ind == 53 ~ 143, 
+                      age_stan == 5 & igg_week_ind == 53 ~ 144,
+                      age_stan == 2 & igg_week_ind == 54 ~ 145,
+                      age_stan == 3 & igg_week_ind == 54 ~ 146,
+                      age_stan == 4 & igg_week_ind == 54 ~ 147, 
+                      age_stan == 5 & igg_week_ind == 54 ~ 148,
+                      age_stan == 2 & igg_week_ind == 55 ~ 149,
+                      age_stan == 3 & igg_week_ind == 55 ~ 150,
+                      age_stan == 4 & igg_week_ind == 55 ~ 151, 
+                      age_stan == 5 & igg_week_ind == 55 ~ 152,
+                      age_stan == 2 & igg_week_ind == 56 ~ 153,
+                      age_stan == 3 & igg_week_ind == 56 ~ 154,
+                      age_stan == 4 & igg_week_ind == 56 ~ 155, 
+                      age_stan == 5 & igg_week_ind == 56 ~ 156,
+                      age_stan == 2 & igg_week_ind == 57 ~ 157,
+                      age_stan == 3 & igg_week_ind == 57 ~ 158,
+                      age_stan == 4 & igg_week_ind == 57 ~ 159, 
+                      age_stan == 5 & igg_week_ind == 57 ~ 160,
+                      age_stan == 2 & igg_week_ind == 58 ~ 161,
+                      age_stan == 3 & igg_week_ind == 58 ~ 162,
+                      age_stan == 4 & igg_week_ind == 58 ~ 163, 
+                      age_stan == 5 & igg_week_ind == 58 ~ 164,
+                      age_stan == 2 & igg_week_ind == 59 ~ 165,
+                      age_stan == 3 & igg_week_ind == 59 ~ 166,
+                      age_stan == 4 & igg_week_ind == 59 ~ 167, 
+                      TRUE ~ 168)) %>% 
+  filter(is.na(IGG_data_before$race_stan) != 1)
+
+IGG_data_after = IGG_data_after %>%
+  mutate(age_week = case_when(age_stan == 2 & igg_week_ind == 60 ~ 1,
+                      age_stan == 3 & igg_week_ind == 60 ~ 2,       
+                      age_stan == 4 & igg_week_ind == 60 ~ 3, 
+                      age_stan == 5 & igg_week_ind == 60 ~ 4,
+                      age_stan == 2 & igg_week_ind == 61 ~ 5,
+                      age_stan == 3 & igg_week_ind == 61 ~ 6,
+                      age_stan == 4 & igg_week_ind == 61 ~ 7,
+                      age_stan == 5 & igg_week_ind == 61 ~ 8,
+                      age_stan == 2 & igg_week_ind == 62 ~ 9,
+                      age_stan == 3 & igg_week_ind == 62 ~ 10,
+                      age_stan == 4 & igg_week_ind == 62 ~ 11,
+                      age_stan == 5 & igg_week_ind == 62 ~ 12,
+                      age_stan == 2 & igg_week_ind == 63 ~ 13,
+                      age_stan == 3 & igg_week_ind == 63 ~ 14,
+                      age_stan == 4 & igg_week_ind == 63 ~ 15,
+                      age_stan == 5 & igg_week_ind == 63 ~ 16,
+                      age_stan == 2 & igg_week_ind == 64 ~ 17,
+                      age_stan == 3 & igg_week_ind == 64 ~ 18,
+                      age_stan == 4 & igg_week_ind == 64 ~ 19,
+                      age_stan == 5 & igg_week_ind == 64 ~ 20,
+                      age_stan == 2 & igg_week_ind == 65 ~ 21,
+                      age_stan == 3 & igg_week_ind == 65 ~ 22,
+                      age_stan == 4 & igg_week_ind == 65 ~ 23,
+                      age_stan == 5 & igg_week_ind == 65 ~ 24,
+                      age_stan == 2 & igg_week_ind == 66 ~ 25,
+                      age_stan == 3 & igg_week_ind == 66 ~ 26,
+                      age_stan == 4 & igg_week_ind == 66 ~ 27,
+                      age_stan == 5 & igg_week_ind == 66 ~ 28,
+                      age_stan == 2 & igg_week_ind == 67 ~ 29,
+                      age_stan == 3 & igg_week_ind == 67 ~ 30,
+                      age_stan == 4 & igg_week_ind == 67 ~ 31,
+                      age_stan == 5 & igg_week_ind == 67 ~ 32,
+                      age_stan == 2 & igg_week_ind == 68 ~ 33,
+                      age_stan == 3 & igg_week_ind == 68 ~ 34,
+                      age_stan == 4 & igg_week_ind == 68 ~ 35,
+                      age_stan == 5 & igg_week_ind == 68 ~ 36,
+                      age_stan == 2 & igg_week_ind == 69 ~ 37,
+                      age_stan == 3 & igg_week_ind == 69 ~ 38,
+                      age_stan == 4 & igg_week_ind == 69 ~ 39,
+                      age_stan == 5 & igg_week_ind == 69 ~ 40,
+                      age_stan == 2 & igg_week_ind == 70 ~ 41,
+                      age_stan == 3 & igg_week_ind == 70 ~ 42,
+                      age_stan == 4 & igg_week_ind == 70 ~ 43,
+                      age_stan == 5 & igg_week_ind == 70 ~ 44,
+                      age_stan == 2 & igg_week_ind == 71 ~ 45,
+                      age_stan == 3 & igg_week_ind == 71 ~ 46,
+                      age_stan == 4 & igg_week_ind == 71 ~ 47,
+                      age_stan == 5 & igg_week_ind == 71 ~ 48,
+                      age_stan == 2 & igg_week_ind == 72 ~ 49,
+                      age_stan == 3 & igg_week_ind == 72 ~ 50,
+                      age_stan == 4 & igg_week_ind == 72 ~ 51,
+                      age_stan == 5 & igg_week_ind == 72 ~ 52,
+                      age_stan == 2 & igg_week_ind == 73 ~ 53,
+                      age_stan == 3 & igg_week_ind == 73 ~ 54,
+                      age_stan == 4 & igg_week_ind == 73 ~ 55,
+                      age_stan == 5 & igg_week_ind == 73 ~ 56,
+                      age_stan == 2 & igg_week_ind == 74 ~ 57,
+                      age_stan == 3 & igg_week_ind == 74 ~ 58,
+                      age_stan == 4 & igg_week_ind == 74 ~ 59,
+                      age_stan == 5 & igg_week_ind == 74 ~ 60,
+                      age_stan == 2 & igg_week_ind == 75 ~ 61,
+                      age_stan == 3 & igg_week_ind == 75 ~ 62,
+                      age_stan == 4 & igg_week_ind == 75 ~ 63,
+                      age_stan == 5 & igg_week_ind == 75 ~ 64,
+                      age_stan == 2 & igg_week_ind == 76 ~ 65,
+                      age_stan == 3 & igg_week_ind == 76 ~ 66,
+                      age_stan == 4 & igg_week_ind == 76 ~ 67,
+                      age_stan == 5 & igg_week_ind == 76 ~ 68,
+                      age_stan == 2 & igg_week_ind == 77 ~ 69,
+                      age_stan == 3 & igg_week_ind == 77 ~ 70,
+                      age_stan == 4 & igg_week_ind == 77 ~ 71,
+                      age_stan == 5 & igg_week_ind == 77 ~ 72,
+                      age_stan == 2 & igg_week_ind == 78 ~ 73,
+                      age_stan == 3 & igg_week_ind == 78 ~ 74,
+                      age_stan == 4 & igg_week_ind == 78 ~ 75,
+                      age_stan == 5 & igg_week_ind == 78 ~ 76,
+                      age_stan == 2 & igg_week_ind == 79 ~ 77,
+                      age_stan == 3 & igg_week_ind == 79 ~ 78,
+                      age_stan == 4 & igg_week_ind == 79 ~ 79,
+                      age_stan == 5 & igg_week_ind == 79 ~ 80,
+                      age_stan == 2 & igg_week_ind == 80 ~ 81,
+                      age_stan == 3 & igg_week_ind == 80 ~ 82,
+                      age_stan == 4 & igg_week_ind == 80 ~ 83,
+                      age_stan == 5 & igg_week_ind == 80 ~ 84,
+                      age_stan == 2 & igg_week_ind == 81 ~ 85,
+                      age_stan == 3 & igg_week_ind == 81 ~ 86,
+                      age_stan == 4 & igg_week_ind == 81 ~ 87,
+                      TRUE ~ 88)) %>% 
+  filter(is.na(IGG_data_after$race_stan) != 1)
+
+igg_data_stan_week_before = list(
+  N = dim(IGG_data_before)[1], 
+  y = IGG_data_before$y_response,
+  J_time = length(unique(IGG_data_before$igg_week_ind)),
+  male = IGG_data_before $sex_stan, 
+  race = as.numeric(IGG_data_before$race_stan), 
+  age = as.numeric(IGG_data_before$age_stan),
+  week = IGG_data_before$igg_week_ind - 17,
+  age_week = IGG_data_before$age_week,
+  county = IGG_data_before$county_stan,
+  J_spec = 14, y_spec = c(0, 368, 30, 70, 1102, 300, 311, 500, 198, 99, 29, 146, 105, 50), n_spec = c(0, 371, 30, 70, 1102, 300, 311, 500, 200, 99, 31, 150, 108, 52), J_sens = 4, y_sens = c(99, 84, 37, 35), n_sens = c(100, 85, 37, 35), logit_spec_prior_scale = 0.2, logit_sens_prior_scale = 0.2, intercept_prior_mean = 0, intercept_prior_scale = 2.5, coef_prior_scale = 2.5, coef_prior_scale_interaction = 1, coef_prior_scale_time = 5, J = 2 * 3 * 5 * 2, N_pop = poststratification_table_nozip$N, N_acs = county.ps
+)
+
+igg_data_stan_week_after = list(
+  N = dim(IGG_data_after)[1], 
+  y = IGG_data_after$y_response,
+  J_time = length(unique(IGG_data_after$igg_week_ind)),
+  male = IGG_data_after $sex_stan, 
+  race = as.numeric(IGG_data_after$race_stan), 
+  age = as.numeric(IGG_data_after$age_stan),
+  week = IGG_data_after$igg_week_ind - 59,
+  age_week = IGG_data_after$age_week,
+  county = IGG_data_after$county_stan,
+  J_spec = 14, y_spec = c(0, 368, 30, 70, 1102, 300, 311, 500, 198, 99, 29, 146, 105, 50), n_spec = c(0, 371, 30, 70, 1102, 300, 311, 500, 200, 99, 31, 150, 108, 52), J_sens = 4, y_sens = c(99, 84, 37, 35), n_sens = c(100, 85, 37, 35), logit_spec_prior_scale = 0.2, logit_sens_prior_scale = 0.2, intercept_prior_mean = 0, intercept_prior_scale = 2.5, coef_prior_scale = 2.5, coef_prior_scale_interaction = 1, coef_prior_scale_time = 5, J = 2 * 3 * 5 * 2, N_pop = poststratification_table_nozip$N, N_acs = county.ps
+)
+
+
+fit_IGG_before = stan(file = "IgG MRP.stan", data = igg_data_stan_week_before, refresh = 0, cores = 5, iter = 10000, chains = 2)
+fit_IGG_after = stan(file = "IgG MRP.stan", data = igg_data_stan_week_after, refresh = 0, cores = 5, iter = 10000, chains = 2)
+```
+
+## IgG Before & After plot
+
+```{r}
+##### Creating dataframe for plotting
+IGG_prevalence_by_week_before <- patient_data_igg_before %>% 
+  filter(!is.na(igg_week_ind)) %>% 
+  group_by(igg_week_ind) %>% 
+  summarize(
+    igg_prevalence = sum(y_response == 1)/n(),
+    total_patient = n(),
+    positive_patient = sum(y_response == 1)
+  ) 
+IGG_prevalence_by_week_after <- patient_data_igg_after %>% 
+  filter(!is.na(igg_week_ind)) %>% 
+  group_by(igg_week_ind) %>% 
+  summarize(
+    igg_prevalence = sum(y_response == 1)/n(),
+    total_patient = n(),
+    positive_patient = sum(y_response == 1)
+  ) 
+
+#Before data
+IGG_est_raw_before = data.frame(cbind(rep(c("Raw", "MRP-hospital", "MRP-community"), each = length(unique(IGG_prevalence_by_week_before$igg_week_ind))), rep(IGG_prevalence_by_week_before$igg_week_ind, 3), c(IGG_prevalence_by_week_before$igg_prevalence, apply(rstan::extract(fit_IGG_before, "p_avg_h", permuted = TRUE)[[1]], 2, mean), apply(rstan::extract(fit_IGG_before, "p_avg_c", permuted = TRUE)[[1]], 2, mean)), c(rep(0, length(unique(IGG_prevalence_by_week_before$igg_week_ind))), apply(rstan::extract(fit_IGG_before, "p_avg_h", permuted = TRUE)[[1]], 2, sd), apply(rstan::extract(fit_IGG_before, "p_avg_c", permuted = TRUE)[[1]], 2, sd))))
+names(IGG_est_raw_before) = c("type", "week", "est", "sd")
+IGG_est_raw_before$week = as.numeric(as.character(IGG_est_raw_before$week))
+IGG_est_raw_before$est = as.numeric(as.character(IGG_est_raw_before$est))
+IGG_est_raw_before$sd = as.numeric(as.character(IGG_est_raw_before$sd))
+
+plot1 <- ggplot(data = IGG_est_raw_before[-c(1,2, 43, 44, 85, 86),], aes(x = week, y = est, group = type, colour = type)) + #delete the first two weeks from raw, hospital and community group.
+  geom_point(aes(shape = type)) +
+  geom_line(aes(linetype = type, colour = type), alpha = 0.4) +
+  geom_errorbar(aes(ymin = est - sd, ymax = est + sd, linetype = type), width = 0.1, alpha = 0.4) +
+  labs(title = "", x = "", y = "IgG Prevalence") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1)) +
+  scale_x_continuous(expand = c(0, 0),limits = c(17, 60), breaks = c(18, 23, 28, 32, 36, 40, 45, 49, 54, 58), labels = c("May", "Jun", "July", "Aug", "Sep", "Oct", "Nov","Dec", "Jan", "Feb")) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(hjust = 1.2), legend.title = element_blank(), legend.text = element_text(size = 7), legend.position = c(0.15, 0.75), panel.grid.major = element_line(size = 0.5, linetype = 'solid',colour = "grey"), panel.grid.minor.x = element_blank())
+ggsave(width = 8, height = 3, units = "in", device = "png", file = "IgG_before.png")
+
+##### After data
+IGG_est_raw_after = data.frame(cbind(rep(c("Raw", "MRP-hospital", "MRP-community"), each = length(unique(IGG_prevalence_by_week_after$igg_week_ind))), rep(IGG_prevalence_by_week_after$igg_week_ind, 3), c(IGG_prevalence_by_week_after$igg_prevalence, apply(rstan::extract(fit_IGG_after, "p_avg_h", permuted = TRUE)[[1]], 2, mean), apply(rstan::extract(fit_IGG_after, "p_avg_c", permuted = TRUE)[[1]], 2, mean)), c(rep(0, length(unique(IGG_prevalence_by_week_after$igg_week_ind))), apply(rstan::extract(fit_IGG_after, "p_avg_h", permuted = TRUE)[[1]], 2, sd), apply(rstan::extract(fit_IGG_after, "p_avg_c", permuted = TRUE)[[1]], 2, sd))))
+names(IGG_est_raw_after) = c("type", "week", "est", "sd")
+IGG_est_raw_after$week = as.numeric(as.character(IGG_est_raw_after$week))
+IGG_est_raw_after$est = as.numeric(as.character(IGG_est_raw_after$est))
+IGG_est_raw_after$sd = as.numeric(as.character(IGG_est_raw_after$sd))
+plot2 <-ggplot(data = IGG_est_raw_after, aes(x = week, y = est, group = type, colour = type)) +
+  geom_point(aes(shape = type)) +
+  geom_line(aes(linetype = type, colour = type), alpha = 0.4) +
+  geom_errorbar(aes(ymin = est - sd, ymax = est + sd, linetype = type), width = 0.1, alpha = 0.4) +
+  labs(title = "", x = "", y = "IgG Prevalence") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1)) +
+  scale_x_continuous(expand = c(0, 0),limits = c(57, 82), breaks = c(58, 62, 66, 70, 74, 79), labels = c("Feb", "Mar", "Apr", "May", "Jun", "July")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust = 1.2), legend.title = element_blank(), legend.text = element_text(size = 7), legend.position = c(0.15, 0.75), panel.grid.major = element_line(size = 0.5, linetype = 'solid',colour = "grey"), panel.grid.minor.x = element_blank())
+
+```
+
+
+## Generating ED visit plot in Figure 1
+
+```{r}
+district1_hospitalization<- read.csv("./RI Hosp Data sample.csv")
+district1_hospitalization <- janitor::clean_names(district1_hospitalization)
+district1_hospitalization_data = district1_hospitalization%>%
+  mutate(week_ind = week(strptime(date,"%Y-%m-%d")),
+         day_ind = yday(strptime(date,"%Y-%m-%d")),
+         year_ind = year(strptime(date,"%Y-%m-%d"))
+  )%>%
+  mutate(week_ind = ifelse(year_ind == 2021 & week_ind == 1, 54, 
+                        ifelse(year_ind == 2021 & week_ind == 2, 55,
+                        ifelse(year_ind == 2021 & week_ind == 3, 56,
+                        ifelse(year_ind == 2021 & week_ind == 4, 57,
+                        ifelse(year_ind == 2021 & week_ind == 5, 58,
+                        ifelse(year_ind == 2021 & week_ind == 6, 59,
+                        ifelse(year_ind == 2021 & week_ind == 7, 60,
+                        ifelse(year_ind == 2021 & week_ind == 8, 61,
+                        ifelse(year_ind == 2021 & week_ind == 9, 62,
+                        ifelse(year_ind == 2021 & week_ind == 10, 63,
+                        ifelse(year_ind == 2021 & week_ind == 11, 64,
+                        ifelse(year_ind == 2021 & week_ind == 12, 65,
+                        ifelse(year_ind == 2021 & week_ind == 13, 66,
+                        ifelse(year_ind == 2021 & week_ind == 14, 67,
+                        ifelse(year_ind == 2021 & week_ind == 15, 68,
+                        ifelse(year_ind == 2021 & week_ind == 16, 69,
+                        ifelse(year_ind == 2021 & week_ind == 17, 70,
+                        ifelse(year_ind == 2021 & week_ind == 18, 71,
+                        ifelse(year_ind == 2021 & week_ind == 19, 72,
+                        ifelse(year_ind == 2021 & week_ind == 20, 73,
+                        ifelse(year_ind == 2021 & week_ind == 21, 74,
+                        ifelse(year_ind == 2021 & week_ind == 22, 75,
+                        ifelse(year_ind == 2021 & week_ind == 23, 76,
+                        ifelse(year_ind == 2021 & week_ind == 24, 77,
+                        ifelse(year_ind == 2021 & week_ind == 25, 78,
+                        ifelse(year_ind == 2021 & week_ind == 26, 79,
+                        ifelse(year_ind == 2021 & week_ind == 27, 80,
+                        ifelse(year_ind == 2021 & week_ind == 28, 81,
+                        ifelse(year_ind == 2021 & week_ind == 29, 82,
+                        ifelse(year_ind == 2021 & week_ind == 30, 83,
+                        ifelse(year_ind == 2021 & week_ind == 31, 84,
+                        ifelse(year_ind == 2021 & week_ind == 32, 85,
+                        ifelse(year_ind == 2021 & week_ind == 33, 86,
+                        ifelse(year_ind == 2021 & week_ind == 34, 87,
+                        ifelse(year_ind == 2021 & week_ind == 35, 88,
+                        ifelse(year_ind == 2021 & week_ind == 36, 89,
+                        ifelse(year_ind == 2021 & week_ind == 37, 90,
+                        week_ind)))))))))))))))))))))))))))))))))))))) %>%  
+  filter(week_ind >=20 & week_ind <= 81) %>% 
+  filter(county == "Lake" | county == "Porter") %>% 
+  group_by(week_ind) %>% 
+  summarise(total_hospitalization = sum(hospitalization_count),
+            total_ed = sum(ed_visit_count))
+
+plot_ed_sn <- ggplot()+
+  geom_point(data =district1_hospitalization_data[c(1:40, 63:102, 125:164),] , aes(x = week_ind, y = total_ed))+
+  geom_line(data =district1_hospitalization_data[c(1:40, 63:102, 125:164),] , aes(x = week_ind, y = total_ed))+
+  scale_x_continuous(expand = c(0, 0), limits = c(17, 60), breaks = c(18, 23, 28, 32, 36, 40, 45, 49, 54, 58, 62, 66, 70, 74, 79), labels = c( "May", "Jun", "July", "Aug", "Sep", "Oct", "Nov","Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "July")) +
+  scale_y_continuous("#ED visit",expand = c(0, 0), limits = c(0, 1000))+
+  labs(title = "", x = "")+
+  theme_bw() +
+  theme(axis.text.x = element_text(hjust = 1.2), legend.title = element_blank(), legend.text = element_text(size = 7), legend.position = c(0.15, 0.75), panel.grid.major = element_line(size = 0.5, linetype = 'solid',colour = "grey"), panel.grid.minor.x = element_blank())
+```
+
+
+
+## Generating Table 1
+
+```{r igg table, echo=FALSE, warning=FALSE, message=FALSE}
+table3 =data.frame(rbind(c("Size",dim(patient_data_pcr)[1],dim(patient_data_igg_before)[1],
+                            dim(patient_data_igg_after)[1],dim(patient_data_pcr_symptomatic)[1],
+                            dim(patient_data_igg_before_symptomatic)[1],dim(patient_data_igg_after_symptomatic)[1],
+                            sum(poststratify_data$grand_total), sum(all_sexage)),
+
+
+c("Prevalence(%)",
+  patient_data_pcr %>%
+    group_by(pcr_result) %>%
+    summarize(
+      n = n(),
+      ratio = n / dim(patient_data_pcr)[1]
+    )%>%
+    slice(2)%>%
+    pull(ratio),
+  
+  patient_data_igg_before %>%
+    group_by(igg_result) %>%
+    summarize(
+      n = n(),
+      ratio = n / dim(patient_data_igg_before)[1]
+    )%>%
+    slice(2)%>%
+    pull(ratio), 
+  
+  patient_data_igg_after %>%
+    group_by(igg_result) %>%
+    summarize(
+      n = n(),
+      ratio = n / dim(patient_data_igg_after)[1]
+    )%>%
+    slice(2)%>%
+    pull(ratio),
+  
+  patient_data_pcr_symptomatic %>%
+    group_by(pcr_result) %>%
+    summarize(
+      n = n(),
+      ratio = n / dim(patient_data_pcr_symptomatic)[1]
+    )%>%
+    slice(2)%>%
+    pull(ratio),
+  
+  patient_data_igg_before_symptomatic%>%
+    group_by(igg_result) %>%
+    summarize(
+      n = n(),
+      ratio = n / dim(patient_data_igg_before_symptomatic)[1]
+    )%>%
+    slice(2)%>%
+    pull(ratio),
+  
+  patient_data_igg_after_symptomatic%>%
+    group_by(igg_result) %>%
+    summarize(
+      n = n(),
+      ratio = n / dim(patient_data_igg_after_symptomatic)[1]
+    )%>%
+    slice(2)%>%
+    pull(ratio),
+  NA, NA
+),
+cbind(
+  #sex
+  c("Female(%)","Male(%)"),
+  patient_data_pcr %>% 
+    group_by(sex_stan) %>% 
+    summarize(
+      n = n(),
+      pct = n / dim(patient_data_pcr)[1]
+    ) %>% pull(pct),
+  
+  patient_data_igg_before %>% 
+    group_by(sex_stan) %>% 
+    summarize(
+      n = n(),
+      pct = n / dim(patient_data_igg_before)[1]
+    ) %>% pull(pct),
+  
+  patient_data_igg_after %>% 
+    group_by(sex_stan) %>% 
+    summarize(
+      n = n(),
+      pct = n / dim(patient_data_igg_after)[1]
+    ) %>% pull(pct),
+  
+  patient_data_pcr_symptomatic %>% 
+    group_by(sex_stan) %>% 
+    summarize(
+      n = n(),
+      pct = n / dim(patient_data_pcr_symptomatic)[1]
+    ) %>% pull(pct),
+  
+  patient_data_igg_before_symptomatic %>% 
+    group_by(sex_stan) %>% 
+    summarize(
+      n = n(),
+      pct = n / dim(patient_data_igg_before_symptomatic)[1]
+    ) %>% pull(pct),
+  
+  patient_data_igg_after_symptomatic %>% 
+    group_by(sex_stan) %>% 
+    summarize(
+      n = n(),
+      pct = n / dim(patient_data_igg_after_symptomatic)[1]
+    ) %>% pull(pct),
+  
+  poststratify_data %>% 
+    group_by(sex_stan) %>% 
+    summarize(
+      n = sum(grand_total),
+      pct = n / sum(poststratify_data$grand_total)
+    ) %>% pull(pct),
+  
+  c(sum(all_sexage[,c(1,3,5,7,9)])/sum(all_sexage), sum(all_sexage[,1+c(1,3,5,7,9)])/sum(all_sexage))),
+cbind(c("Age0-17(%)","Age18-34(%)","Age35-64(%)","Age65-74(%)", "Age75+(%)"),
+      patient_data_pcr %>% 
+        group_by(age_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_pcr)[1]
+        ) %>% pull(pct),
+      
+      patient_data_igg_before %>% 
+        group_by(age_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_igg_before)[1]
+        ) %>% pull(pct),
+      
+      patient_data_igg_after %>% 
+        group_by(age_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_igg_after)[1]
+        ) %>% pull(pct),
+      
+      patient_data_pcr_symptomatic %>% 
+        group_by(age_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_pcr_symptomatic)[1]
+        ) %>% pull(pct),
+      
+      patient_data_igg_before_symptomatic %>% 
+        group_by(age_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_igg_before_symptomatic)[1]
+        ) %>% pull(pct),
+      
+      patient_data_igg_after_symptomatic %>% 
+        group_by(age_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_igg_after_symptomatic)[1]
+        ) %>% pull(pct),
+      
+      poststratify_data %>% 
+        group_by(age_stan) %>% 
+        summarize(
+          n = sum(grand_total),
+          pct = n / sum(poststratify_data$grand_total)
+        ) %>% pull(pct),
+      
+      c(sum(all_sexage[,1:2])/sum(all_sexage),sum(all_sexage[,2+1:2])/sum(all_sexage), sum(all_sexage[,4+1:2])/sum(all_sexage),sum(all_sexage[,6+1:2])/sum(all_sexage), sum(all_sexage[,8+1:2])/sum(all_sexage))),
+
+
+
+cbind(c("White(%)","Black(%)","Other(%)"),
+      patient_data_pcr %>% 
+        group_by(race_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_pcr)[1]
+        ) %>% pull(pct),
+      
+      patient_data_igg_before %>% 
+        group_by(race_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_igg_before)[1]
+        ) %>% pull(pct),
+      
+      patient_data_igg_after %>% 
+        group_by(race_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_igg_after)[1]
+        ) %>% pull(pct),
+      
+      patient_data_pcr_symptomatic %>% 
+        group_by(race_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_pcr_symptomatic)[1]
+        ) %>% pull(pct),
+      
+      patient_data_igg_before_symptomatic %>% 
+        group_by(race_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_igg_before_symptomatic)[1]
+        ) %>% pull(pct),
+      
+      patient_data_igg_after_symptomatic %>% 
+        group_by(race_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_igg_after_symptomatic)[1]
+        ) %>% pull(pct),
+      
+      poststratify_data %>% 
+        group_by(race_stan) %>% 
+        summarize(
+          n = sum(grand_total),
+          pct = n / sum(poststratify_data$grand_total)
+        ) %>% pull(pct),
+      
+      c(sum(white)/sum(all_sexage), sum(black)/sum(all_sexage), sum(other)/sum(all_sexage))),
+cbind(c("Lake(%)","Porter(%)"),
+      patient_data_pcr %>% 
+        group_by(county_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_pcr)[1]
+        ) %>% pull(pct),
+      
+      patient_data_igg_before %>% 
+        group_by(county_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_igg_before)[1]
+        ) %>% pull(pct),
+      
+      patient_data_igg_after %>% 
+        group_by(county_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_igg_after)[1]
+        ) %>% pull(pct),
+      
+      patient_data_pcr_symptomatic %>% 
+        group_by(county_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_pcr_symptomatic)[1]
+        ) %>% pull(pct),
+      
+      patient_data_igg_before_symptomatic %>% 
+        group_by(county_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_igg_before_symptomatic)[1]
+        ) %>% pull(pct),
+      
+      patient_data_igg_after_symptomatic %>% 
+        group_by(county_stan) %>% 
+        summarize(
+          n = n(),
+          pct = n / dim(patient_data_igg_after_symptomatic)[1]
+        ) %>% pull(pct),
+      
+      poststratify_data %>% 
+        group_by(county_stan) %>% 
+        summarize(
+          n = sum(grand_total),
+          pct = n / sum(poststratify_data$grand_total)
+        ) %>% pull(pct),
+      
+      c(sum(all_sexage[1,])/sum(all_sexage),sum(all_sexage[2,])/sum(all_sexage)))))
+
+
+names(table3) = c("","Asymptomatic PCR", "Asymptomatic IgG before",
+                  "Asymptomatic IgG after",
+                  "Symptomatic PCR",  "Symptomatic IgG before",
+                  "Symptomatic IgG after",
+                  "Hospital","Community")
+
+
+for (j in 2:dim(table3)[2]){
+  table3[1,j]=as.numeric(as.character(table3[1,j]))
+  table3[-1,j]=round(as.numeric(as.character(table3[-1,j])) * 100,1)
+}
+for (i in 2:14) {
+  for (j in 2:dim(table3)[2]) {
+    B <- as.numeric(as.character(table3[i,j]))
+    table3[i,j] <- ifelse(B<10 | B> 90,round(B,digits = 1),round(B,digits = 0) )
+  }
+}
+```
+
+## Generating Table 2
+
+```{r}
+#County 1: Lake, County 2: Porter
+vaccine_data_race = read_excel("./county-vaccination-demographics.xlsx",
+  sheet = "Race"
+) %>% 
+  filter(county == "Lake" | county == "Porter") %>% 
+  select(c(county, race, first_dose_administered, single_dose_administered))
+
+vaccine_data_gender = read_excel("./county-vaccination-demographics.xlsx",
+  sheet = "Gender"
+) %>% 
+  filter(county == "Lake" | county == "Porter") %>% 
+  select(c(county, gender, first_dose_administered, single_dose_administered))
+
+vaccine_data_age = read_excel("./county-vaccination-demographics.xlsx",
+  sheet = "Age"
+) %>% 
+  filter(county == "Lake" | county == "Porter") %>% 
+  filter(age_group != "Unknown") %>% 
+  select(c(county, age_group, first_dose_administered, single_dose_administered)) %>% 
+  mutate(age_stan = ifelse(age_group == "12-15" |age_group == "16-19", 1, 
+                           ifelse(age_group == "20-24" |age_group == "25-29"|age_group == "30-34", 2,
+                                  ifelse(age_group == "35-39" |age_group == "40-44"|age_group == "45-49"|age_group == "50-54" |age_group == "55-59"|age_group == "60-64", 3,
+                                         ifelse(age_group == "65-69" |age_group == "70-74",4,5)))))
+
+######## N in different categories
+race_ID_postratification <- matrix(NA,nrow = 3, ncol = 20)
+race_ID_postratification[1,] <- c(1,2,7,8,13,14,19,20,25,26, 31,32,37,38, 43,44, 49, 50,55,56)
+race_ID_postratification[2,] <- c(1,2,7,8,13,14,19,20,25,26, 31,32,37,38, 43,44, 49, 50,55,56) + 2
+race_ID_postratification[3,] <- c(3,4,9,10,15,16,21,22,27,28,33,34,39,40, 45,46, 51, 52,57,58) + 2
+gender_ID_postratification <- matrix(NA,nrow = 2, ncol = 30)
+gender_ID_postratification[1,] <- c(seq(1:30))
+gender_ID_postratification[2,] <- c(seq(1:30)) + 30
+age_ID_postratification <- matrix(NA,nrow = 5, ncol = 12)
+age_ID_postratification[1,] <- c(1,2,3,4,5,6,31,32,33,34,35,36)
+age_ID_postratification[2,] <- c(1,2,3,4,5,6,31,32,33,34,35,36) + 6
+age_ID_postratification[3,] <- c(1,2,3,4,5,6,31,32,33,34,35,36) + 12
+age_ID_postratification[4,] <- c(1,2,3,4,5,6,31,32,33,34,35,36) + 18
+age_ID_postratification[5,] <- c(1,2,3,4,5,6,31,32,33,34,35,36) + 24
+### race
+sum(c(as.numeric(vaccine_data_race[5,3]),as.numeric(vaccine_data_race[5,4]),as.numeric(vaccine_data_race[10,3]),as.numeric(vaccine_data_race[10,4])))/sum(county.ps[c(race_ID_postratification[1,])])
+sum(c(as.numeric(vaccine_data_race[2,3]),as.numeric(vaccine_data_race[2,4]),as.numeric(vaccine_data_race[7,3]),as.numeric(vaccine_data_race[7,4])))/sum(county.ps[c(race_ID_postratification[2,])])
+sum(c(as.numeric(vaccine_data_race[1,3]),as.numeric(vaccine_data_race[3,3]),as.numeric(vaccine_data_race[4,3]),as.numeric(vaccine_data_race[6,3]),as.numeric(vaccine_data_race[8,3]),as.numeric(vaccine_data_race[9,3]),as.numeric(vaccine_data_race[1,4]),as.numeric(vaccine_data_race[3,4]),as.numeric(vaccine_data_race[4,4]),as.numeric(vaccine_data_race[6,4]),as.numeric(vaccine_data_race[8,4]),as.numeric(vaccine_data_race[9,4])))/sum(county.ps[c(race_ID_postratification[3,])])
+###gender
+sum(c(as.numeric(vaccine_data_gender[1,3]),as.numeric(vaccine_data_gender[4,3]),as.numeric(vaccine_data_gender[1,4]),as.numeric(vaccine_data_gender[4,4])))/sum(county.ps[gender_ID_postratification[1,]])
+sum(c(as.numeric(vaccine_data_gender[2,3]),as.numeric(vaccine_data_gender[5,3]),as.numeric(vaccine_data_gender[2,4]),as.numeric(vaccine_data_gender[5,4])))/sum(county.ps[gender_ID_postratification[2,]])
+###age
+sum(c(as.numeric(vaccine_data_age[1,3]),as.numeric(vaccine_data_age[2,3]),as.numeric(vaccine_data_age[16,3]),as.numeric(vaccine_data_age[17,3]),as.numeric(vaccine_data_age[2,4]),as.numeric(vaccine_data_age[17,4])))/sum(county.ps[age_ID_postratification[1,]])
+sum(c(as.numeric(vaccine_data_age[3,3]),as.numeric(vaccine_data_age[4,3]),as.numeric(vaccine_data_age[5,3]),as.numeric(vaccine_data_age[18,3]),as.numeric(vaccine_data_age[19,3]),as.numeric(vaccine_data_age[20,3]),as.numeric(vaccine_data_age[3,4]),as.numeric(vaccine_data_age[4,4]),as.numeric(vaccine_data_age[5,4]),as.numeric(vaccine_data_age[18,4]),as.numeric(vaccine_data_age[19,4]),as.numeric(vaccine_data_age[20,4])))/sum(county.ps[age_ID_postratification[2,]])
+sum(c(as.numeric(vaccine_data_age[6,3]),as.numeric(vaccine_data_age[7,3]),as.numeric(vaccine_data_age[8,3]),as.numeric(vaccine_data_age[9,3]),as.numeric(vaccine_data_age[10,3]),as.numeric(vaccine_data_age[11,3]),as.numeric(vaccine_data_age[21,3]),as.numeric(vaccine_data_age[22,3]),as.numeric(vaccine_data_age[23,3]),as.numeric(vaccine_data_age[24,3]),as.numeric(vaccine_data_age[25,3]),as.numeric(vaccine_data_age[26,3]),as.numeric(vaccine_data_age[6,4]),as.numeric(vaccine_data_age[7,4]),as.numeric(vaccine_data_age[8,4]),as.numeric(vaccine_data_age[9,4]),as.numeric(vaccine_data_age[10,4]),as.numeric(vaccine_data_age[11,4]),as.numeric(vaccine_data_age[21,4]),as.numeric(vaccine_data_age[22,4]),as.numeric(vaccine_data_age[23,4]),as.numeric(vaccine_data_age[24,4]),as.numeric(vaccine_data_age[25,4]),as.numeric(vaccine_data_age[26,4])))/sum(county.ps[age_ID_postratification[3,]])
+sum(c(as.numeric(vaccine_data_age[12,3]),as.numeric(vaccine_data_age[13,3]),as.numeric(vaccine_data_age[27,3]),as.numeric(vaccine_data_age[28,3]),as.numeric(vaccine_data_age[12,4]),as.numeric(vaccine_data_age[13,4]),as.numeric(vaccine_data_age[27,4]),as.numeric(vaccine_data_age[28,4])))/sum(county.ps[age_ID_postratification[4,]])
+sum(c(as.numeric(vaccine_data_age[14,3]),as.numeric(vaccine_data_age[15,3]),as.numeric(vaccine_data_age[29,3]),as.numeric(vaccine_data_age[30,3]),as.numeric(vaccine_data_age[14,4]),as.numeric(vaccine_data_age[15,4]),as.numeric(vaccine_data_age[29,4]),as.numeric(vaccine_data_age[30,4])))/sum(county.ps[age_ID_postratification[5,]])
+prevalence_at_end <- as.matrix(fit_IGG_after, pars = c("p_white_c[22]", "p_black_c[22]","p_other_c[22]", "p_male_c[22]", "p_female_c[22]", "p_0_17_c[22]", "p_18_39_c[22]","p_40_64_c[22]", "p_65_75_c[22]", "p_75_c[22]"))
+apply(prevalence_at_end, 2, mean)
+apply(prevalence_at_end, 2, sd)
+
+vaccine_data_overall = read_csv("./county-vaccinations-by-date.csv"
+) %>% 
+  filter(county == "Lake" | county == "Porter") %>% 
+  select(c(date, county, first_dose_administered, single_dose_administered))
+
+#Cutoff at week of 7/12/2021
+vaccine_data_overall_selected <- vaccine_data_overall[1:419,]
+
+#total population is sum(county.ps[c(race_ID_postratification[1,])]) + sum(county.ps[c(race_ID_postratification[2,])]) + sum(county.ps[c(race_ID_postratification[3,])]) or
+#sum(county.ps[gender_ID_postratification[1,]]) + sum(county.ps[gender_ID_postratification[2,]]), which is 654890
+overall_ratio <- (sum(vaccine_data_overall_selected$first_dose_administered) + sum(vaccine_data_overall_selected$single_dose_administered))/(sum(county.ps[gender_ID_postratification[1,]]) + sum(county.ps[gender_ID_postratification[2,]]))
+
+#Extract_info from MRP
+prevalence_at_end_overall <- as.matrix(fit_IGG_after, pars = c("p_avg_c[22]"))
+apply(prevalence_at_end_overall, 2, mean)
+apply(prevalence_at_end_overall, 2, sd)
+quantile(prevalence_at_end_overall)
+```
